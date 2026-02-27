@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h2>Daftar Akun</h2>
+    
+    <div class="form-group">
+        <label for="regName">Nama Lengkap</label>
+        <input type="text" id="regName" placeholder="Hanya huruf dan spasi">
+    </div>
+
+    <div class="form-group">
+        <label for="regEmail">Email</label>
+        <input type="email" id="regEmail" placeholder="Masukkan email">
+    </div>
+
+    <div class="form-group">
+        <label>Jenis Kelamin</label>
+        <div class="gender-options">
+            <input type="radio" id="laki-laki" name="gender" value="Laki-laki">
+            <label for="laki-laki">Laki-laki</label>
+            
+            <input type="radio" id="perempuan" name="gender" value="Perempuan">
+            <label for="perempuan">Perempuan</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="regPassword">Password</label>
+        <input type="password" id="regPassword" placeholder="Buat password">
+    </div>
+    
+    <div class="form-group">
+        <label for="regKonfirmasiPassword">Konfirmasi Password</label>
+        <input type="password" id="regKonfirmasiPassword" placeholder="Ulangi password">
+    </div>
+    
+    <button onclick="register()">Daftar</button>
+    
+    <div class="link-text">
+        Sudah punya akun? <a href="login.html">Login di sini</a>
+    </div>
+</div>
+
+<script>
+    function register() {
+        const nameInput = document.getElementById('regName').value.trim();
+        const emailInput = document.getElementById('regEmail').value.trim();
+        const genderInput = document.querySelector('input[name="gender"]:checked');
+        const passwordInput = document.getElementById('regPassword').value;
+        const confirmInput = document.getElementById('regKonfirmasiPassword').value;
+
+        if (nameInput === "" || emailInput === "" || genderInput === "" || passwordInput === "" || !confirmInput) {
+            alert("Error: Semua kolom harus diisi!");
+            return;
+        }
+
+        const nameRegex = /^[a-zA-Z\s]+$/;
+        if (!nameRegex.test(nameInput)) {
+            alert("Nama hanya bisa berisi huruf dan spasi!");
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailInput)) {
+            alert("Format email tidak valid!");
+            return;
+        }
+
+        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+        if (!passwordRegex.test(passwordInput)) {
+            alert("Password minimal 8 karakter dan harus mengandung huruf dan angka!");
+            return;
+        }
+
+        if (passwordInput !== confirmInput) {
+            alert("Password dan Konfirmasi Password tidak sesuai!");
+            return;
+        }
+
+        // simpan data ke localstorage <--- biar tidak lupa (jan di hapus)
+        const userData = {
+            name: nameInput,
+            email: emailInput,
+            gender: genderInput,
+            password: passwordInput
+        };
+
+        localStorage.setItem('userData', JSON.stringify(userData));
+        alert("Sukses: Pendaftaran berhasil!");
+        
+        window.location.href = "login.html";
+    }
+</script>
+
+</body>
+</html>

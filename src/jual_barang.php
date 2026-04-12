@@ -74,37 +74,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jual Barang</title>
+    <title>Jual Barang - Rekos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: #f4f6fb;
+            background: #f8fafc; /* slate-50 */
             margin: 0;
-            padding: 20px;
+            padding-bottom: 40px;
         }
 
-        .container {
+        .form-container {
             max-width: 700px;
             margin: 0 auto;
             background: white;
-            padding: 24px;
+            padding: 30px;
             border-radius: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        h1 {
-            margin-top: 0;
-            margin-bottom: 20px;
-        }
-
-        .top-link {
-            display: inline-block;
-            margin-bottom: 20px;
-            text-decoration: none;
-            background: #2d5cff;
-            color: white;
-            padding: 10px 16px;
-            border-radius: 8px;
+            border: 1px solid #e2e8f0;
         }
 
         .success {
@@ -112,7 +100,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             color: #127a3f;
             padding: 12px;
             border-radius: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            border: 1px solid #bbf7d0;
         }
 
         .error {
@@ -120,7 +109,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             color: #b42318;
             padding: 12px;
             border-radius: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+            border: 1px solid #fecaca;
         }
 
         label {
@@ -128,14 +118,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-top: 14px;
             margin-bottom: 6px;
             font-weight: bold;
+            color: #334155;
+            font-size: 14px;
         }
 
         input, textarea {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ccc;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
             box-sizing: border-box;
+            background-color: #f8fafc;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background-color: #fff;
         }
 
         textarea {
@@ -144,67 +144,79 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         button {
-            margin-top: 20px;
-            background: #2d5cff;
+            margin-top: 24px;
+            background: #2563eb;
             color: white;
             border: none;
-            padding: 12px 18px;
+            padding: 14px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
+            transition: background 0.3s;
         }
 
         button:hover {
-            background: #1f49d8;
+            background: #1d4ed8;
         }
 
         .actions {
-            margin-top: 18px;
+            margin-top: 20px;
+            text-align: center;
         }
 
         .actions a {
-            margin-right: 10px;
             text-decoration: none;
-            color: #2d5cff;
-            font-weight: bold;
+            color: #2563eb;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .actions a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
 
-    <a class="top-link" href="dashboard.php">← Kembali ke Dashboard</a>
+    <nav class="bg-blue-800 p-4 text-white mb-8 shadow-md">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <a href="dashboard.php" class="hover:text-blue-200 transition"><i class="fas fa-arrow-left mr-2"></i> Kembali</a>
+            <span class="font-bold text-lg">Jual Barang Bekas</span>
+            <div class="w-20"></div> </div>
+    </nav>
 
-    <div class="container">
-        <h1>Jual Barang</h1>
-
+    <div class="form-container">
         <?php if (!empty($success)): ?>
-            <div class="success"><?= htmlspecialchars($success) ?></div>
+            <div class="success"><i class="fas fa-check-circle mr-2"></i><?= htmlspecialchars($success) ?></div>
         <?php endif; ?>
 
         <?php if (!empty($error)): ?>
-            <div class="error"><?= htmlspecialchars($error) ?></div>
+            <div class="error"><i class="fas fa-exclamation-circle mr-2"></i><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
         <form method="POST" enctype="multipart/form-data">
             <label for="nama_barang">Nama Barang</label>
-            <input type="text" id="nama_barang" name="nama_barang" required>
+            <input type="text" id="nama_barang" name="nama_barang" placeholder="Contoh: Kipas Angin Cosmos" required>
 
             <label for="deskripsi">Deskripsi</label>
-            <textarea id="deskripsi" name="deskripsi" required></textarea>
+            <textarea id="deskripsi" name="deskripsi" placeholder="Jelaskan kondisi barang..." required></textarea>
 
-            <label for="harga">Harga</label>
-            <input type="number" id="harga" name="harga" min="1" required>
+            <label for="harga">Harga (Rp)</label>
+            <input type="number" id="harga" name="harga" min="1" placeholder="Contoh: 50000" required>
 
-            <label for="jumlah">Jumlah</label>
-            <input type="number" id="jumlah" name="jumlah" min="1" required>
+            <label for="jumlah">Jumlah Barang</label>
+            <input type="number" id="jumlah" name="jumlah" min="1" placeholder="Contoh: 1" required>
 
-            <label for="gambar">Gambar</label>
-            <input type="file" id="gambar" name="gambar" accept=".jpg,.jpeg,.png,.webp" required>
+            <label for="gambar">Upload Gambar Barang</label>
+            <input type="file" id="gambar" name="gambar" accept=".jpg,.jpeg,.png,.webp" required style="background: white; padding: 10px;">
 
-            <button type="submit">Upload Barang</button>
+            <button type="submit"><i class="fas fa-upload mr-2"></i>Upload Barang</button>
         </form>
 
         <div class="actions">
-            <a href="barang_saya.php">Lihat Barang Saya</a>
+            <a href="barang_saya.php">Lihat Daftar Barang Saya <i class="fas fa-arrow-right ml-1"></i></a>
         </div>
     </div>
 

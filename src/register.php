@@ -1,247 +1,141 @@
 <?php
-session_start();
-include "koneksi.php";
-
-$error = "";
-$success = "";
+// Include koneksi ke database
+require 'koneksi.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username   = trim($_POST['username']);
-    $email      = trim($_POST['email']);
-    $role       = $_POST['role'] ?? '';
-    $alamat     = trim($_POST['alamat']);
-    $no_telp    = trim($_POST['no_telp']);
-    $password   = trim($_POST['password']);
-    $konfirmasi = trim($_POST['konfirmasi_password']);
+    // Menangkap data dari form
+    $username = $_POST['username'];
+    $email    = strtolower($_POST['email']); // Ubah ke huruf kecil untuk validasi
+    $password = $_POST['password'];
 
-    if ($username == "" || $email == "" || $role == "" || $alamat == "" || $no_telp == "" || $password == "" || $konfirmasi == "") {
-        $error = "Semua kolom wajib diisi!";
-    } elseif (strlen($password) < 8) {
-        $error = "Password minimal 8 karakter.";
-    } elseif ($password !== $konfirmasi) {
-        $error = "Konfirmasi password tidak sama.";
-    } else {
-        $cek = mysqli_query($conn, "SELECT * FROM tbl_user WHERE username='$username' OR email='$email'");
-
-        if ($cek && mysqli_num_rows($cek) > 0) {
-            $error = "Username atau email sudah terdaftar!";
-        } else {
-            $query = mysqli_query($conn, "INSERT INTO tbl_user (username, email, password, role, alamat, no_telp)
-                                          VALUES ('$username', '$email', '$password', '$role', '$alamat', '$no_telp')");
-
-            if ($query) {
-                $success = "Registrasi berhasil! Silakan login.";
-            } else {
-                $error = "Registrasi gagal: " . mysqli_error($conn);
-            }
-        }
+    // --- VALIDASI EMAIL KHUSUS UPN JATIM ---
+    if (!str_ends_with($email, '@student.upnjatim.ac.id')) {
+        echo "<script>alert('Registrasi gagal! Hanya email mahasiswa UPN Jatim (@student.upnjatim.ac.id) yang diizinkan.'); window.history.back();</script>";
+        exit; // Hentikan proses jika bukan email UPN
     }
+
+    // 1. Cek apakah email sudah terdaftar sebelumnya
+    $cek_email = $conn->prepare("SELECT email FROM tbl_user WHERE email = ?");
+    $cek_email->bind_param("s", $email);
+    $cek_email->execute();
+    $cek_email->store_result();
+    
+    if ($cek_email->num_rows > 0) {
+        echo "<script>alert('Email sudah terdaftar! Silakan gunakan email lain.'); window.history.back();</script>";
+    } else {
+        // 2. Hash password demi keamanan
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+        // 3. Simpan data ke database
+        $stmt = $conn->prepare("INSERT INTO tbl_user (username, email, password, role) VALUES (?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $username, $email, $hashed_password, $role);
+
+        if ($stmt->execute()) {
+            echo "<script>alert('Registrasi Berhasil! Silakan Login.'); window.location='login.php';</script>";
+        } else {
+            echo "<script>alert('Terjadi kesalahan koneksi database.');</script>";
+        }
+        $stmt->close();
+    }
+    $cek_email->close();
 }
 ?>
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar Akun</title>
-    <link href="./output.css" rel="stylesheet">
+    <title>Daftar Akun - Rekos</title>
+    <link href="./output.css" rel="stylesheet"> 
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen py-8">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen py-10">
 
-<div class="bg-white shadow-lg rounded-xl p-8 w-full max-w-md">
-    <h2 class="text-2xl font-bold text-center mb-6">Daftar Akun</h2>
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center mb-6">Daftar Akun</h2>
 
-    <?php if (!empty($error)): ?>
-        <div class="mb-4 p-3 rounded-lg bg-red-100 text-red-700 border border-red-300 text-sm text-center">
-            <?= htmlspecialchars($error) ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if (!empty($success)): ?>
-        <div class="mb-4 p-3 rounded-lg bg-green-100 text-green-700 border border-green-300 text-sm text-center">
-            <?= htmlspecialchars($success) ?>
-        </div>
-    <?php endif; ?>
-
-    <form method="POST" action="" onsubmit="return validateForm()">
-        <div class="mb-4">
-            <label for="username" class="block mb-2 font-medium">Username</label>
-            <input 
-                type="text" 
-                id="username"
-                name="username"
-                placeholder="Masukkan username"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                value="<?= isset($_POST['username']) ? htmlspecialchars($_POST['username']) : '' ?>"
-            >
-        </div>
-
-        <div class="mb-4">
-            <label for="email" class="block mb-2 font-medium">Email</label>
-            <input 
-                type="email" 
-                id="email"
-                name="email"
-                placeholder="Masukkan email"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                value="<?= isset($_POST['email']) ? htmlspecialchars($_POST['email']) : '' ?>"
-            >
-        </div>
-
-        <div class="mb-4">
-            <label class="block mb-2 font-medium">Daftar sebagai</label>
-            <div class="flex gap-6">
-                <label class="flex items-center gap-2">
-                    <input 
-                        type="radio" 
-                        name="role" 
-                        value="pembeli" 
-                        required
-                        <?= (isset($_POST['role']) && $_POST['role'] == 'pembeli') ? 'checked' : '' ?>
-                    >
-                    Pembeli
-                    <label class="flex items-center gap-2">
-                </label>
-
-                <label class="flex items-center gap-2">
-                    <input 
-                        type="radio" 
-                        name="role" 
-                        value="penjual"
-                        <?= (isset($_POST['role']) && $_POST['role'] == 'penjual') ? 'checked' : '' ?>
-                    >
-                    Penjual
-                </label>
+        <form id="formRegister" method="POST" action="" onsubmit="return validateForm()">
+            
+            <div class="mb-4">
+                <label for="regName" class="block mb-2 font-medium">Nama Lengkap</label>
+                <input type="text" id="regName" name="username"
+                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Hanya huruf dan spasi" required>
             </div>
-        </div>
 
-        <div class="mb-4">
-            <label for="alamat" class="block mb-2 font-medium">Alamat</label>
-            <input 
-                type="text" 
-                id="alamat"
-                name="alamat"
-                placeholder="Masukkan alamat"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                value="<?= isset($_POST['alamat']) ? htmlspecialchars($_POST['alamat']) : '' ?>"
-            >
-        </div>
+            <div class="mb-4">
+                <label for="regEmail" class="block mb-2 font-medium">Email Mahasiswa</label>
+                <input type="email" id="regEmail" name="email"
+                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="NPM@student.upnjatim.ac.id" required>
+                <p class="text-xs text-gray-500 mt-1">*Wajib menggunakan email UPN Jatim</p>
+            </div>
 
-        <div class="mb-4">
-            <label for="no_telp" class="block mb-2 font-medium">No Telepon</label>
-            <input 
-                type="text" 
-                id="no_telp"
-                name="no_telp"
-                placeholder="Masukkan no telepon"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                value="<?= isset($_POST['no_telp']) ? htmlspecialchars($_POST['no_telp']) : '' ?>"
-            >
-        </div>
+            <div class="mb-4">
+                <label for="regPassword" class="block mb-2 font-medium">Password</label>
+                <input type="password" id="regPassword" name="password"
+                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Buat password" required>
+            </div>
 
-        <div class="mb-2">
-            <label for="password" class="block mb-2 font-medium">Password</label>
-            <input 
-                type="password" 
-                id="password"
-                name="password"
-                placeholder="Masukkan password"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                minlength="8"
-                oninput="checkPasswordHint()"
-            >
-        </div>
+            <div class="mb-6">
+                <label for="regKonfirmasiPassword" class="block mb-2 font-medium">Konfirmasi Password</label>
+                <input type="password" id="regKonfirmasiPassword"
+                    class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ulangi password" required>
+            </div>
 
-        <p id="passwordHint" class="mb-4 text-sm text-gray-500">
-            Password minimal 8 karakter.
-        </p>
+            <button type="submit"
+                class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200">
+                Daftar
+            </button>
 
-        <div class="mb-2">
-            <label for="konfirmasi_password" class="block mb-2 font-medium">Konfirmasi Password</label>
-            <input 
-                type="password" 
-                id="konfirmasi_password"
-                name="konfirmasi_password"
-                placeholder="Ulangi password"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-                oninput="checkPasswordMatch()"
-            >
-        </div>
+            <div class="text-center mt-4 text-sm">
+                Sudah punya akun?
+                <a href="login.php" class="text-blue-600 hover:underline">
+                    Login di sini
+                </a>
+            </div>
 
-        <p id="matchHint" class="mb-6 text-sm text-gray-500 min-h-[20px]"></p>
-
-        <button 
-            type="submit"
-            name="register"
-            class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
-        >
-            Daftar
-        </button>
-    </form>
-
-    <div class="text-center mt-4 text-sm">
-        Sudah punya akun?
-        <a href="login.php" class="text-blue-600 hover:underline">Login di sini</a>
+        </form>
     </div>
-</div>
 
-<script>
-function checkPasswordHint() {
-    const password = document.getElementById('password').value;
-    const hint = document.getElementById('passwordHint');
+    <script>
+    function validateForm() {
+        const nameInput = document.getElementById('regName').value.trim();
+        const emailInput = document.getElementById('regEmail').value.trim().toLowerCase();
+        const passwordInput = document.getElementById('regPassword').value;
+        const confirmInput = document.getElementById('regKonfirmasiPassword').value;
 
-    if (password.length === 0) {
-        hint.textContent = 'Password minimal 8 karakter.';
-        hint.className = 'mb-4 text-sm text-gray-500';
-    } else if (password.length < 8) {
-        hint.textContent = 'Password masih kurang dari 8 karakter.';
-        hint.className = 'mb-4 text-sm text-red-500';
-    } else {
-        hint.textContent = 'Password sudah memenuhi minimal 8 karakter.';
-        hint.className = 'mb-4 text-sm text-green-600';
+        // Validasi Nama
+        const nameRegex = /^[a-zA-Z\s]+$/;
+        if (!nameRegex.test(nameInput)) {
+            alert("Nama hanya bisa berisi huruf dan spasi!");
+            return false;
+        }
+
+        // Validasi Ekstensi Email UPN Jatim
+        if (!emailInput.endsWith('@student.upnjatim.ac.id')) {
+            alert("Harap gunakan email mahasiswa UPN Jatim (@student.upnjatim.ac.id)!");
+            return false;
+        }
+
+        // Validasi Kekuatan Password
+        const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+        if (!passwordRegex.test(passwordInput)) {
+            alert("Password minimal 8 karakter dan harus mengandung kombinasi huruf dan angka!");
+            return false;
+        }
+
+        // Validasi Kecocokan Password
+        if (passwordInput !== confirmInput) {
+            alert("Password dan Konfirmasi Password tidak sesuai!");
+            return false;
+        }
+
+        return true;
     }
-}
-
-function checkPasswordMatch() {
-    const password = document.getElementById('password').value;
-    const konfirmasi = document.getElementById('konfirmasi_password').value;
-    const hint = document.getElementById('matchHint');
-
-    if (konfirmasi.length === 0) {
-        hint.textContent = '';
-        hint.className = 'mb-6 text-sm text-gray-500 min-h-[20px]';
-    } else if (password !== konfirmasi) {
-        hint.textContent = 'Konfirmasi password belum cocok.';
-        hint.className = 'mb-6 text-sm text-red-500 min-h-[20px]';
-    } else {
-        hint.textContent = 'Konfirmasi password cocok.';
-        hint.className = 'mb-6 text-sm text-green-600 min-h-[20px]';
-    }
-}
-
-function validateForm() {
-    const password = document.getElementById('password').value;
-    const konfirmasi = document.getElementById('konfirmasi_password').value;
-
-    if (password.length < 8) {
-        alert('Password minimal 8 karakter.');
-        return false;
-    }
-
-    if (password !== konfirmasi) {
-        alert('Konfirmasi password tidak sama.');
-        return false;
-    }
-
-    return true;
-}
-</script>
+    </script>
 
 </body>
 </html>

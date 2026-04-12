@@ -19,7 +19,8 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 
 $_SESSION['last_activity'] = time();
 
 $username = $_SESSION['username'];
-$role = $_SESSION['role'] ?? 'pembeli';
+// Mengambil data role dari session (jika kosong, gunakan fallback 'Member')
+$role = isset($_SESSION['role']) ? $_SESSION['role'] : 'Member';
 ?>
 <!doctype html>
 <html lang="id" class="scroll-smooth">
@@ -87,20 +88,11 @@ $role = $_SESSION['role'] ?? 'pembeli';
                     Jual Barang
                 </a>
 
-                <a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
-                    <i class="fas fa-shopping-bag text-blue-400"></i>
-                    Pesanan Masuk
-                </a>
-            <?php else: ?>
-                <a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
-                    <i class="fas fa-store text-blue-400"></i>
-                    Belanja
-                </a>
-
-                <a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
-                    <i class="fas fa-shopping-cart text-blue-400"></i>
-                    Keranjang
-                </a>
+        <a href="profil.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
+          <i class="fas fa-user text-blue-400"></i>
+          Profil
+        </a>
+      </nav>
 
                 <a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
                     <i class="fas fa-receipt text-blue-400"></i>
@@ -138,11 +130,9 @@ $role = $_SESSION['role'] ?? 'pembeli';
                         alt="Avatar"
                     />
 
-                    <div>
-                        <p class="font-semibold"><?= htmlspecialchars($username) ?></p>
-                        <p class="text-xs text-slate-400"><?= htmlspecialchars(ucfirst($role)) ?></p>
-                    </div>
-                </div>
+            <div>
+              <p class="font-semibold"><?= htmlspecialchars($username) ?></p>
+              <p class="text-xs text-slate-400"><?= htmlspecialchars(ucfirst($role)) ?> Rekos</p>
             </div>
         </header>
 

@@ -2,236 +2,223 @@
 session_start();
 require 'koneksi.php';
 
+$session_timeout = 600; // 10 menit
+
 // cek login
-if (!isset($_SESSION['id_user'])) {
+if (!isset($_SESSION['username']) || !isset($_SESSION['status']) || !isset($_SESSION['id_user'])) {
     header("Location: login.php");
-    exit;
+    exit();
 }
 
-// hanya penjual yang boleh akses
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'penjual') {
-    header("Location: jual_barang.php");
-    exit;
+// cek timeout
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $session_timeout)) {
+    session_unset();
+    session_destroy();
+    header("Location: login.php?expired=1");
+    exit();
 }
+
+// update aktivitas
+$_SESSION['last_activity'] = time();
 
 $id_user = $_SESSION['id_user'];
+$username = $_SESSION['username'];
+$role = isset($_SESSION['role']) ? $_SESSION['role'] : 'pembeli';
+$currentPage = basename($_SERVER['PHP_SELF']);
 
-// ambil hanya barang milik user yang login
+// kalau belum penjual, arahkan ke jual_barang.php
+if ($role !== 'penjual') {
+    header("Location: jual_barang.php");
+    exit();
+}
+
+// ambil barang milik user yang login
 $stmt = $conn->prepare("SELECT * FROM tbl_barang WHERE id_user = ? ORDER BY id_barang DESC");
 $stmt->bind_param("i", $id_user);
 $stmt->execute();
 $result = $stmt->get_result();
 ?>
-
-<!DOCTYPE html>
-<html lang="id">
+<!doctype html>
+<html lang="id" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Barang Saya - Rekos</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f8fafc; 
-            margin: 0;
-            padding-bottom: 40px;
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+        * {
+            font-family: "Inter", sans-serif;
         }
 
-        .grid-container {
-            max-width: 64rem; 
-            margin: 0 auto;
-            padding: 0 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
-            gap: 24px; 
+        .glass {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
-        .card {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.2s ease, box-shadow 0.2s ease; 
-            border: 1px solid #e2e8f0;
-            cursor: pointer; /* Mengubah kursor jadi tangan saat diarahkan */
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-
-        .card img {
-            width: 100%;
-            height: 180px; 
-            object-fit: cover;
-            display: block;
-        }
-
-        .card-content {
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1; 
-        }
-
-        .card h3 {
-            margin: 0 0 8px;
-            font-size: 1.1rem;
-            color: #1e293b;
-            font-weight: 600;
-            line-height: 1.4;
-        }
-
-        .harga {
-            color: #2563eb;
-            font-size: 1.25rem;
-            font-weight: bold;
-            margin-bottom: 12px;
-        }
-
-        .kosong {
-            max-width: 64rem;
-            margin: 0 auto;
-            background: white;
-            padding: 40px 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            color: #64748b;
+        .glass:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transition: 0.2s;
         }
     </style>
 </head>
-<body>
 
-    <nav class="bg-blue-800 p-4 text-white mb-8 shadow-md">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
-            <a href="dashboard.php" class="hover:text-blue-200 transition"><i class="fas fa-arrow-left mr-2"></i> Kembali</a>
-            <span class="font-bold text-lg">Barang Saya</span>
-            <a href="jual_barang.php" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
-                <i class="fas fa-plus mr-1"></i> Jual
+<body class="bg-gradient-to-br from-blue-900 via-blue-800 to-blue-950 min-h-screen text-white">
+
+    <aside class="fixed left-0 top-0 w-64 h-full glass shadow-xl">
+        <div class="p-6 border-b border-white/10">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl">
+                    <i class="fas fa-store"></i>
+                </div>
+
+                <div>
+                    <h2 class="font-bold text-lg">Rekos</h2>
+                    <p class="text-xs text-slate-300">Marketplace Anak Kos</p>
+                </div>
+            </div>
+        </div>
+
+        <nav class="p-6 space-y-2">
+            <a href="dashboard.php"
+               class="flex items-center gap-3 p-3 rounded-xl <?= $currentPage == 'dashboard.php' ? 'bg-blue-500/20 border border-blue-400/30' : 'hover:bg-white/10' ?>">
+                <i class="fas fa-home text-blue-400"></i>
+                Dashboard
+            </a>
+
+            <a href="barang_saya.php"
+               class="flex items-center gap-3 p-3 rounded-xl <?= $currentPage == 'barang_saya.php' ? 'bg-blue-500/20 border border-blue-400/30' : 'hover:bg-white/10' ?>">
+                <i class="fas fa-box text-blue-400"></i>
+                Barang Saya
+            </a>
+
+            <a href="jual_barang.php"
+               class="flex items-center gap-3 p-3 rounded-xl <?= $currentPage == 'jual_barang.php' ? 'bg-blue-500/20 border border-blue-400/30' : 'hover:bg-white/10' ?>">
+                <i class="fas fa-plus-circle text-blue-400"></i>
+                Jual Barang
+            </a>
+
+            <a href="profil.php"
+               class="flex items-center gap-3 p-3 rounded-xl <?= $currentPage == 'profil.php' ? 'bg-blue-500/20 border border-blue-400/30' : 'hover:bg-white/10' ?>">
+                <i class="fas fa-user text-blue-400"></i>
+                Profil
+            </a>
+        </nav>
+
+        <div class="absolute bottom-6 left-6 right-6">
+            <a href="logout.php"
+               class="flex items-center gap-3 p-3 rounded-xl bg-red-500/20 border border-red-400/30 text-red-200 hover:bg-red-500/30">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
             </a>
         </div>
-    </nav>
+    </aside>
 
-    <?php if ($result->num_rows > 0): ?>
-        <div class="grid-container">
-            <?php while ($row = $result->fetch_assoc()): ?>
-                <div class="card" 
-                     onclick="bukaModal(this)"
-                     data-nama="<?= htmlspecialchars($row['nama_barang']) ?>"
-                     data-harga="Rp <?= number_format($row['harga'], 0, ',', '.') ?>"
-                     data-stok="<?= htmlspecialchars($row['jumlah']) ?>"
-                     data-deskripsi="<?= htmlspecialchars($row['deskripsi']) ?>"
-                     data-gambar="../assets/uploads/<?= htmlspecialchars($row['gambar']) ?>">
-                     
-                    <img src="../assets/uploads/<?= htmlspecialchars($row['gambar']) ?>" alt="Gambar Barang">
-                    <div class="card-content">
-                        <h3><?= htmlspecialchars($row['nama_barang']) ?></h3>
-                        <div class="harga">Rp <?= number_format($row['harga'], 0, ',', '.') ?></div>
-                        
-                        <div class="flex-grow">
-                            <p class="text-sm text-slate-600 mb-2"><strong>Stok:</strong> <?= htmlspecialchars($row['jumlah']) ?> pcs</p>
-                            <p class="text-sm text-slate-500 line-clamp-2 leading-relaxed"><?= htmlspecialchars($row['deskripsi']) ?></p>
+    <main class="ml-64 p-8 bg-gray-100 min-h-screen">
+        <header class="bg-blue-800 rounded-2xl p-6 mb-8 shadow text-white">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold">Barang Saya</h1>
+                    <p class="text-slate-300">Kelola barang yang sudah kamu upload</p>
+                </div>
+
+                <div class="flex items-center gap-3 bg-white/10 px-4 py-2 rounded-xl">
+                    <img
+                        src="https://ui-avatars.com/api/?name=<?= urlencode($username) ?>&background=3b82f6&color=fff"
+                        class="w-10 h-10 rounded-lg"
+                        alt="Avatar"
+                    />
+                    <div>
+                        <p class="font-semibold"><?= htmlspecialchars($username) ?></p>
+                        <p class="text-xs text-slate-400"><?= htmlspecialchars(ucfirst($role)) ?> Rekos</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Daftar Barang Saya</h2>
+                    <p class="text-slate-500 text-sm">Semua barang yang kamu jual akan tampil di sini.</p>
+                </div>
+
+                <a
+                    href="jual_barang.php"
+                    class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 transition">
+                    <i class="fas fa-plus"></i>
+                    Jual Barang
+                </a>
+            </div>
+
+            <?php if ($result->num_rows > 0): ?>
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <?php while ($row = $result->fetch_assoc()): ?>
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden">
+                            <img
+                                src="<?= !empty($row['gambar']) ? '../assets/img/' . htmlspecialchars($row['gambar']) : 'https://via.placeholder.com/400x250?text=No+Image' ?>"
+                                class="w-full h-56 object-cover"
+                                alt="<?= htmlspecialchars($row['nama_barang']) ?>"
+                            >
+
+                            <div class="p-5">
+                                <h3 class="text-lg font-semibold text-slate-800">
+                                    <?= htmlspecialchars($row['nama_barang']) ?>
+                                </h3>
+
+                                <p class="text-blue-600 text-2xl font-bold mt-2">
+                                    Rp <?= number_format($row['harga'], 0, ',', '.') ?>
+                                </p>
+
+                                <p class="text-sm text-slate-500 mt-3">
+                                    <?= htmlspecialchars($row['deskripsi']) ?>
+                                </p>
+
+                                <p class="text-sm text-slate-500 mt-2">
+                                    Stok: <?= (int)$row['jumlah'] ?>
+                                </p>
+
+                                <div class="mt-5 flex gap-3">
+                                    <a
+                                        href="#"
+                                        class="flex-1 rounded-xl bg-slate-200 py-2 text-center font-medium text-slate-700 hover:bg-slate-300 transition">
+                                        Edit
+                                    </a>
+                                    <a
+                                        href="#"
+                                        class="flex-1 rounded-xl bg-red-100 py-2 text-center font-medium text-red-600 hover:bg-red-200 transition">
+                                        Hapus
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    <?php endwhile; ?>
                 </div>
-            <?php endwhile; ?>
-        </div>
-    <?php else: ?>
-        <div class="kosong border border-slate-200">
-            <i class="fas fa-box-open text-5xl mb-4 text-slate-300"></i>
-            <p class="text-lg">Belum ada barang yang kamu upload.</p>
-            <p class="text-sm mt-2">Mulai jualan barang kos bekasmu sekarang!</p>
-        </div>
-    <?php endif; ?>
-
-    <div id="modalDetail" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
-        <div id="modalContent" class="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300">
-            
-            <div class="flex justify-between items-center p-4 border-b border-slate-100">
-                <h3 class="font-bold text-lg text-slate-800">Detail Barang</h3>
-                <button onclick="tutupModal()" class="text-slate-400 hover:text-red-500 transition w-8 h-8 rounded-full hover:bg-red-50 flex items-center justify-center">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-
-            <div class="p-0 overflow-y-auto max-h-[75vh]">
-                <img id="modalGambar" src="" alt="Gambar Barang" class="w-full h-64 object-cover">
-                
-                <div class="p-6">
-                    <h2 id="modalNama" class="text-2xl font-bold text-slate-800 mb-2">Nama Barang</h2>
-                    <div id="modalHarga" class="text-blue-600 font-bold text-2xl mb-4">Rp 0</div>
-                    
-                    <div class="mb-5">
-                        <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1 rounded-full border border-blue-200">
-                            Stok: <span id="modalStok">0</span> pcs
-                        </span>
+            <?php else: ?>
+                <div class="bg-white rounded-2xl shadow-md p-12 text-center">
+                    <div class="text-slate-300 text-6xl mb-4">
+                        <i class="fas fa-box-open"></i>
                     </div>
-                    
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <h4 class="font-semibold text-sm text-slate-700 mb-2"><i class="fas fa-info-circle mr-1"></i> Deskripsi:</h4>
-                        <p id="modalDeskripsi" class="text-slate-600 text-sm whitespace-pre-line leading-relaxed"></p>
-                    </div>
+                    <h3 class="text-2xl font-semibold text-slate-700 mb-2">Belum ada barang</h3>
+                    <p class="text-slate-500 mb-6">Kamu belum mengupload barang apa pun.</p>
+                    <a
+                        href="jual_barang.php"
+                        class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 transition">
+                        <i class="fas fa-plus"></i>
+                        Mulai Jual Barang
+                    </a>
                 </div>
-            </div>
-            
+            <?php endif; ?>
         </div>
-    </div>
-
-    <script>
-        function bukaModal(element) {
-            const modal = document.getElementById('modalDetail');
-            const modalContent = document.getElementById('modalContent');
-
-            // Ambil data dari atribut card yang di-klik lalu masukkan ke dalam modal
-            document.getElementById('modalGambar').src = element.getAttribute('data-gambar');
-            document.getElementById('modalNama').textContent = element.getAttribute('data-nama');
-            document.getElementById('modalHarga').textContent = element.getAttribute('data-harga');
-            document.getElementById('modalStok').textContent = element.getAttribute('data-stok');
-            document.getElementById('modalDeskripsi').textContent = element.getAttribute('data-deskripsi');
-
-            // Tampilkan modal
-            modal.classList.remove('hidden');
-            
-            // Sedikit delay agar animasi munculnya terlihat smooth
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                modalContent.classList.remove('scale-95');
-                modalContent.classList.add('scale-100');
-            }, 10);
-            
-            // Mencegah scroll pada halaman di belakangnya
-            document.body.style.overflow = 'hidden';
-        }
-
-        function tutupModal() {
-            const modal = document.getElementById('modalDetail');
-            const modalContent = document.getElementById('modalContent');
-
-            // Jalankan animasi menghilang
-            modal.classList.add('opacity-0');
-            modalContent.classList.remove('scale-100');
-            modalContent.classList.add('scale-95');
-
-            // Sembunyikan setelah animasi selesai (300ms)
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                document.body.style.overflow = 'auto'; // Kembalikan fungsi scroll
-            }, 300);
-        }
-
-        // Fitur tambahan: Tutup modal jika user mengklik area gelap di luar kotak modal
-        document.getElementById('modalDetail').addEventListener('click', function(e) {
-            if (e.target === this) {
-                tutupModal();
-            }
-        });
-    </script>
+    </main>
 
 </body>
 </html>

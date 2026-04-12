@@ -2,8 +2,8 @@
 $host = "127.0.0.1";
 $user = "root";
 $pass = "";
-$db   = "db_rekos";
-$port = 3306;       
+$db   = "rekos";
+$port = 3307;       
 $conn = new mysqli($host, $user, $pass, $db, $port);
 
 if ($conn->connect_error) {

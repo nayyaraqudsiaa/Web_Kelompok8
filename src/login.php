@@ -21,22 +21,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    $query = mysqli_query($conn, "SELECT * FROM tbl_user WHERE username='$username' AND password='$password'");
+    // 1. Cari dulu username-nya di database (jangan cari password-nya di sini)
+    $query = mysqli_query($conn, "SELECT * FROM tbl_user WHERE username='$username'");
 
     if ($query && mysqli_num_rows($query) > 0) {
         $data = mysqli_fetch_assoc($query);
 
-        $_SESSION['username'] = $data['username'];
-        $_SESSION['role'] = $data['role'];
-        $_SESSION['status'] = "login";
-        $_SESSION['last_activity'] = time();
+        // 2. Cocokkan password yang diketik dengan password acak di database
+        if (password_verify($password, $data['password'])) {
+            
+            // --- JIKA PASSWORD COCOK, LOGIN SUKSES ---
+            $_SESSION['id_user'] = $data['id_user']; // (Tambahan dari perbaikan sebelumnya)
+            $_SESSION['username'] = $data['username'];
+            $_SESSION['role'] = $data['role'];
+            $_SESSION['status'] = "login";
+            $_SESSION['last_activity'] = time();
 
-        setcookie("username", $data['username'], time() + $session_timeout, "/");
+            setcookie("username", $data['username'], time() + $session_timeout, "/");
 
-        header("Location: dashboard.php");
-        exit();
+            header("Location: dashboard.php");
+            exit();
+            
+        } else {
+            $error = "Password salah!";
+        }
     } else {
-        $error = "Username atau password salah!";
+        $error = "Username tidak ditemukan!";
     }
 }
 ?>

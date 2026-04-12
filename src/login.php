@@ -1,5 +1,6 @@
 <?php
 session_start();
+require 'koneksi.php'; // Wajib menyertakan koneksi database
 
 // Atur durasi session 10 menit
 $session_timeout = 600; // 600 detik = 10 menit
@@ -9,6 +10,9 @@ if (isset($_SESSION['username'])) {
     if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $session_timeout)) {
         session_unset();
         session_destroy();
+        // Redirect ke login dengan pesan expired
+        header("Location: login.php?expired=1");
+        exit();
     } else {
         $_SESSION['last_activity'] = time();
         header("Location: dashboard.php");
@@ -22,21 +26,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // Contoh login dummy
-    // Nanti bisa diganti ke database
-    if ($username === "rinda" && $password === "12345") {
-        $_SESSION['username'] = $username;
-        $_SESSION['status'] = "login";
-        $_SESSION['last_activity'] = time();
+    // Menggunakan prepared statement untuk mencegah SQL Injection
+    $stmt = $conn->prepare("SELECT id_user, username, password, role FROM tbl_user WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-        // Cookie opsional, ikut 10 menit juga
-        setcookie("username", $username, time() + $session_timeout, "/");
+    // Cek apakah username ditemukan
+    if ($result->num_rows > 0) {
+        $user = $result->fetch_assoc();
+        
+        // Verifikasi kecocokan password input dengan hash di database
+        if (password_verify($password, $user['password'])) {
+            // Set session data
+            $_SESSION['id_user']       = $user['id_user'];
+            $_SESSION['username']      = $user['username'];
+            $_SESSION['role']          = $user['role'];
+            $_SESSION['status']        = "login";
+            $_SESSION['last_activity'] = time();
 
-        header("Location: dashboard.php");
-        exit();
+            // Cookie opsional, ikut 10 menit juga
+            setcookie("username", $username, time() + $session_timeout, "/");
+
+            header("Location: dashboard.php");
+            exit();
+        } else {
+            $error = "Password yang Anda masukkan salah!";
+        }
     } else {
-        $error = "Nama pengguna atau password salah!";
+        $error = "Nama pengguna tidak ditemukan!";
     }
+    
+    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
@@ -54,11 +75,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <?php if (isset($_GET['expired'])): ?>
     <div class="mb-4 p-3 rounded-lg bg-yellow-100 text-yellow-700 border border-yellow-300 text-sm text-center">
+        Sesi Anda telah berakhir. Silakan login kembali.
     </div>
-<?php endif; ?>
+    <?php endif; ?>
 
     <?php if (!empty($error)): ?>
-        <div class="mb-4 p-3 rounded-lg bg-red-100 text-red-700 text-sm text-center">
+        <div class="mb-4 p-3 rounded-lg bg-red-100 text-red-700 border border-red-300 text-sm text-center">
             <?= htmlspecialchars($error) ?>
         </div>
     <?php endif; ?>
@@ -70,7 +92,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 type="text" 
                 id="loginName"
                 name="username"
-                placeholder="Masukkan nama Anda"
+                placeholder="Masukkan nama pengguna Anda"
                 class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
             >
@@ -98,7 +120,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <div class="text-center mt-4 text-sm">
         Belum punya akun?
-        <a href="register.html" class="text-blue-600 hover:underline">Daftar di sini</a>
+        <a href="register.php" class="text-blue-600 hover:underline">Daftar di sini</a>
     </div>
 </div>
 

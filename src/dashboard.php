@@ -21,6 +21,8 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 
 $_SESSION['last_activity'] = time();
 
 $username = $_SESSION['username'];
+// Mengambil data role dari session (jika kosong, gunakan fallback 'Member')
+$role = isset($_SESSION['role']) ? $_SESSION['role'] : 'Member';
 ?>
 <!doctype html>
 <html lang="id" class="scroll-smooth">
@@ -86,12 +88,7 @@ $username = $_SESSION['username'];
           Jual Barang
         </a>
 
-        <a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
-          <i class="fas fa-shopping-bag text-blue-400"></i>
-          Pesanan
-        </a>
-
-        <a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
+        <a href="profil.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
           <i class="fas fa-user text-blue-400"></i>
           Profil
         </a>
@@ -122,7 +119,7 @@ $username = $_SESSION['username'];
 
             <div>
               <p class="font-semibold"><?= htmlspecialchars($username) ?></p>
-              <p class="text-xs text-slate-400">Member Rekos</p>
+              <p class="text-xs text-slate-400"><?= htmlspecialchars(ucfirst($role)) ?> Rekos</p>
             </div>
           </div>
         </div>

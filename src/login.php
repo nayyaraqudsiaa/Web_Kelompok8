@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'koneksi.php'; // Wajib menyertakan koneksi database
+include "koneksi.php";
 
 $session_timeout = 600; // 10 menit
 
@@ -8,9 +8,6 @@ if (isset($_SESSION['username'])) {
     if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $session_timeout)) {
         session_unset();
         session_destroy();
-        // Redirect ke login dengan pesan expired
-        header("Location: login.php?expired=1");
-        exit();
     } else {
         $_SESSION['last_activity'] = time();
         header("Location: dashboard.php");
@@ -24,38 +21,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // Menggunakan prepared statement untuk mencegah SQL Injection
-    $stmt = $conn->prepare("SELECT id_user, username, password, role FROM tbl_user WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    $query = mysqli_query($conn, "SELECT * FROM tbl_user WHERE username='$username' AND password='$password'");
 
-    // Cek apakah username ditemukan
-    if ($result->num_rows > 0) {
-        $user = $result->fetch_assoc();
-        
-        // Verifikasi kecocokan password input dengan hash di database
-        if (password_verify($password, $user['password'])) {
-            // Set session data
-            $_SESSION['id_user']       = $user['id_user'];
-            $_SESSION['username']      = $user['username'];
-            $_SESSION['role']          = $user['role'];
-            $_SESSION['status']        = "login";
-            $_SESSION['last_activity'] = time();
+    if ($query && mysqli_num_rows($query) > 0) {
+        $data = mysqli_fetch_assoc($query);
 
-            // Cookie opsional, ikut 10 menit juga
-            setcookie("username", $username, time() + $session_timeout, "/");
+        $_SESSION['username'] = $data['username'];
+        $_SESSION['role'] = $data['role'];
+        $_SESSION['status'] = "login";
+        $_SESSION['last_activity'] = time();
 
-            header("Location: dashboard.php");
-            exit();
-        } else {
-            $error = "Password yang Anda masukkan salah!";
-        }
+        setcookie("username", $data['username'], time() + $session_timeout, "/");
+
+        header("Location: dashboard.php");
+        exit();
     } else {
-        $error = "Nama pengguna tidak ditemukan!";
+        $error = "Username atau password salah!";
     }
-    
-    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
@@ -71,56 +53,90 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <div class="relative w-full max-w-6xl min-h-[680px] rounded-[28px] overflow-hidden shadow-2xl bg-cover bg-center"
          style="background-image: url('https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80');">
 
-    <?php if (isset($_GET['expired'])): ?>
-    <div class="mb-4 p-3 rounded-lg bg-yellow-100 text-yellow-700 border border-yellow-300 text-sm text-center">
-        Sesi Anda telah berakhir. Silakan login kembali.
+        <div class="absolute inset-0 bg-black/55"></div>
+
+        <div class="relative z-10 grid md:grid-cols-2 min-h-[680px]">
+
+            <div class="flex flex-col justify-center px-8 md:px-14 py-12 text-white bg-black/35 backdrop-blur-[2px]">
+                <div class="max-w-md">
+                    <p class="text-sm uppercase tracking-[0.25em] text-white/70 mb-4">
+                        Marketplace Rekos
+                    </p>
+
+                    <h1 class="text-4xl md:text-5xl font-bold leading-tight mb-6">
+                        Selamat Datang di Rekos
+                    </h1>
+
+                    <p class="text-white/85 text-base leading-8">
+                        Platform yang dirancang untuk memfasilitasi jual beli barang kos bekas yang masih layak pakai, dengan tujuan membantu mahasiswa memperoleh kebutuhan kos dengan harga terjangkau serta mengurangi limbah barang yang masih dapat digunakan.
+                    </p>
+
+                    <div class="mt-8">
+                        <a href="register.php"
+                           class="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-600 transition">
+                            Daftar Sekarang
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center px-6 py-10">
+                <div class="w-full max-w-md rounded-[24px] bg-black/55 backdrop-blur-md border border-white/10 p-8 md:p-10 text-white shadow-xl">
+                    <h2 class="text-3xl font-bold mb-8">Login</h2>
+
+                    <?php if (isset($_GET['expired'])): ?>
+                        <div class="mb-4 rounded-xl bg-yellow-500/15 border border-yellow-400/30 px-4 py-3 text-sm text-yellow-200">
+                            Sesi Anda habis. Silakan login kembali.
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($error)): ?>
+                        <div class="mb-4 rounded-xl bg-red-500/15 border border-red-400/30 px-4 py-3 text-sm text-red-200">
+                            <?= htmlspecialchars($error) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" action="" class="space-y-5">
+                        <div>
+                            <label for="loginName" class="block mb-2 text-sm text-white/80">Username</label>
+                            <input
+                                type="text"
+                                id="loginName"
+                                name="username"
+                                placeholder="Masukkan username"
+                                class="w-full border-0 border-b border-white/30 bg-transparent px-0 py-3 text-white placeholder:text-white/45 focus:outline-none focus:border-emerald-400"
+                                required
+                            >
+                        </div>
+
+                        <div>
+                            <label for="loginPassword" class="block mb-2 text-sm text-white/80">Password</label>
+                            <input
+                                type="password"
+                                id="loginPassword"
+                                name="password"
+                                placeholder="Masukkan password"
+                                class="w-full border-0 border-b border-white/30 bg-transparent px-0 py-3 text-white placeholder:text-white/45 focus:outline-none focus:border-emerald-400"
+                                required
+                            >
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="w-full rounded-xl bg-emerald-500 py-3 text-base font-semibold text-white hover:bg-emerald-600 transition mt-4">
+                            Login
+                        </button>
+                    </form>
+
+                    <p class="mt-6 text-sm text-white/70">
+                        Belum punya akun?
+                        <a href="register.php" class="text-emerald-400 hover:underline font-medium">Daftar di sini</a>
+                    </p>
+                </div>
+            </div>
+
+        </div>
     </div>
-    <?php endif; ?>
-
-    <?php if (!empty($error)): ?>
-        <div class="mb-4 p-3 rounded-lg bg-red-100 text-red-700 border border-red-300 text-sm text-center">
-            <?= htmlspecialchars($error) ?>
-        </div>
-    <?php endif; ?>
-
-    <form method="POST" action="">
-        <div class="mb-4">
-            <label for="loginName" class="block mb-2 font-medium">Nama Pengguna</label>
-            <input 
-                type="text" 
-                id="loginName"
-                name="username"
-                placeholder="Masukkan nama pengguna Anda"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-            >
-        </div>
-
-        <div class="mb-6">
-            <label for="loginPassword" class="block mb-2 font-medium">Password</label>
-            <input 
-                type="password" 
-                id="loginPassword"
-                name="password"
-                placeholder="Masukkan password"
-                class="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-            >
-        </div>
-
-        <button 
-            type="submit"
-            class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
-        >
-            Masuk
-        </button>
-    </form>
-
-    <div class="text-center mt-4 text-sm">
-        Belum punya akun?
-        <a href="register.php" class="text-blue-600 hover:underline">Daftar di sini</a>
-    </div>
-</div>
 
 </body>
 </html>

@@ -10,17 +10,36 @@ if (!isset($_SESSION['status']) || $_SESSION['status'] != "login") {
 
 $id_user  = $_SESSION['id_user'];
 $username = $_SESSION['username'];
-$role     = $_SESSION['role'];
 
-// 1. Ambil Detail User Terbaru dari Database
-$query_user = $conn->prepare("SELECT email, no_telp, alamat FROM tbl_user WHERE id_user = ?");
+// Ambil role ASLI dari database
+$query_user = $conn->prepare("SELECT email, no_telp, alamat, role FROM tbl_user WHERE id_user = ?");
 $query_user->bind_param("i", $id_user);
 $query_user->execute();
-$user_data = $query_user->get_result()->fetch_assoc();
+$user_data  = $query_user->get_result()->fetch_assoc();
+$role_asli  = $user_data['role']; // role permanen di DB
 
-// 2. Logika Ambil Riwayat Transaksi Berdasarkan Role
+// Role aktif = dari session (bisa di-switch)
+$role = $_SESSION['role'] ?? $role_asli;
+
+// ════════════════════════════════════════════
+// PROSES: Switch role (hanya jika role_asli = penjual)
+// ════════════════════════════════════════════
+if (isset($_POST['switch_role']) && $role_asli === 'penjual') {
+    if ($role === 'penjual') {
+        $_SESSION['role'] = 'pembeli';
+    } else {
+        $_SESSION['role'] = 'penjual';
+    }
+    header("Location: profil.php");
+    exit;
+}
+
+$role = $_SESSION['role'] ?? $role_asli;
+
+// ════════════════════════════════════════════
+// Riwayat transaksi berdasarkan role AKTIF
+// ════════════════════════════════════════════
 if ($role == 'pembeli') {
-    // Pembeli melihat barang yang mereka beli
     $query_histori = $conn->prepare("
         SELECT t.tanggal, b.nama_barang, b.harga, t.status 
         FROM tbl_transaksi t 
@@ -29,7 +48,6 @@ if ($role == 'pembeli') {
         ORDER BY t.tanggal DESC
     ");
 } else {
-    // Penjual melihat barang mereka yang terjual ke orang lain
     $query_histori = $conn->prepare("
         SELECT t.tanggal, b.nama_barang, b.harga, t.status 
         FROM tbl_transaksi t 
@@ -38,12 +56,10 @@ if ($role == 'pembeli') {
         ORDER BY t.tanggal DESC
     ");
 }
-
 $query_histori->bind_param("i", $id_user);
 $query_histori->execute();
 $riwayat = $query_histori->get_result();
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -64,24 +80,64 @@ $riwayat = $query_histori->get_result();
     </nav>
 
     <div class="max-w-4xl mx-auto px-4 space-y-6">
-        
+
+        <!-- Kartu Profil -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="h-24 bg-gradient-to-r from-blue-600 to-blue-400"></div>
             <div class="px-6 pb-6 text-center">
                 <div class="relative -mt-12 mb-4">
-                    <img src="https://ui-avatars.com/api/?name=<?= urlencode($username) ?>&size=128&background=3b82f6&color=fff" 
-                         alt="Avatar" 
+                    <img src="https://ui-avatars.com/api/?name=<?= urlencode($username) ?>&size=128&background=3b82f6&color=fff"
+                         alt="Avatar"
                          class="w-24 h-24 rounded-full mx-auto border-4 border-white shadow-md">
                 </div>
                 <h2 class="text-2xl font-bold text-slate-800"><?= htmlspecialchars($username) ?></h2>
-                <p class="text-blue-600 font-medium mb-4"><?= ucfirst($role) ?> Rekos</p>
 
-                <a href="edit_profil.php" class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded-full font-semibold transition">
-                    <i class="fas fa-user-edit"></i> Edit Profil
-                </a>
+                <!-- Badge role aktif -->
+                <div class="flex items-center justify-center gap-2 mb-4">
+                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold
+                        <?= $role === 'penjual' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700' ?>">
+                        <i class="fas <?= $role === 'penjual' ? 'fa-store' : 'fa-shopping-bag' ?> text-xs"></i>
+                        <?= ucfirst($role) ?> Rekos
+                    </span>
+                    <?php if ($role_asli === 'penjual'): ?>
+                    <span class="text-xs text-slate-400">(Akun terdaftar sebagai Penjual)</span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="flex items-center justify-center gap-3 flex-wrap">
+                    <!-- Tombol Edit Profil -->
+                    <a href="edit_profil.php" class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2 rounded-full font-semibold transition">
+                        <i class="fas fa-user-edit"></i> Edit Profil
+                    </a>
+
+                    <!-- Tombol Switch Role (hanya muncul jika role_asli = penjual) -->
+                    <?php if ($role_asli === 'penjual'): ?>
+                    <form method="POST">
+                        <input type="hidden" name="switch_role" value="1">
+                        <button type="submit"
+                            class="inline-flex items-center gap-2 px-5 py-2 rounded-full font-semibold transition
+                            <?= $role === 'penjual'
+                                ? 'bg-green-100 hover:bg-green-200 text-green-700'
+                                : 'bg-blue-100 hover:bg-blue-200 text-blue-700' ?>">
+                            <i class="fas <?= $role === 'penjual' ? 'fa-shopping-bag' : 'fa-store' ?>"></i>
+                            <?= $role === 'penjual' ? 'Beralih ke Mode Pembeli' : 'Beralih ke Mode Penjual' ?>
+                        </button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Info mode aktif -->
+                <?php if ($role_asli === 'penjual'): ?>
+                <p class="mt-3 text-xs text-slate-400">
+                    <?= $role === 'penjual'
+                        ? 'Mode Penjual aktif — kamu bisa upload dan kelola barang jualan.'
+                        : 'Mode Pembeli aktif — kamu bisa mencari dan membeli barang.' ?>
+                </p>
+                <?php endif; ?>
             </div>
         </div>
 
+        <!-- Riwayat Transaksi -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-lg font-bold text-slate-800">
@@ -108,7 +164,10 @@ $riwayat = $query_histori->get_result();
                                     <td class="py-4 font-medium"><?= htmlspecialchars($row['nama_barang']) ?></td>
                                     <td class="py-4 text-sm text-blue-600 font-semibold">Rp <?= number_format($row['harga'], 0, ',', '.') ?></td>
                                     <td class="py-4">
-                                        <span class="px-3 py-1 rounded-full text-xs font-medium <?= ($row['status'] == 'selesai') ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' ?>">
+                                        <span class="px-3 py-1 rounded-full text-xs font-medium
+                                            <?= strtolower($row['status']) == 'selesai'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-yellow-100 text-yellow-700' ?>">
                                             <?= ucfirst($row['status']) ?>
                                         </span>
                                     </td>
@@ -127,6 +186,5 @@ $riwayat = $query_histori->get_result();
         </div>
 
     </div>
-
 </body>
 </html>

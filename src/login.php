@@ -4,15 +4,15 @@ include "koneksi.php";
 
 $session_timeout = 600; // 10 menit
 
-if (isset($_SESSION['username'])) {
-    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $session_timeout)) {
-        session_unset();
-        session_destroy();
+// Cek jika sudah login, redirect sesuai role
+if (isset($_SESSION['username']) && isset($_SESSION['status']) && $_SESSION['status'] == 'login') {
+    $role_cek = strtolower($_SESSION['role'] ?? '');
+    if ($role_cek === 'admin') {
+        header("Location: admin_dashboard.php");
     } else {
-        $_SESSION['last_activity'] = time();
         header("Location: dashboard.php");
-        exit();
     }
+    exit();
 }
 
 $error = "";
@@ -21,27 +21,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // 1. Cari dulu username-nya di database (jangan cari password-nya di sini)
     $query = mysqli_query($conn, "SELECT * FROM tbl_user WHERE username='$username'");
 
     if ($query && mysqli_num_rows($query) > 0) {
         $data = mysqli_fetch_assoc($query);
 
-        // 2. Cocokkan password yang diketik dengan password acak di database
-        if (password_verify($password, $data['password'])) {
-            
-            // --- JIKA PASSWORD COCOK, LOGIN SUKSES ---
-            $_SESSION['id_user'] = $data['id_user']; // (Tambahan dari perbaikan sebelumnya)
-            $_SESSION['username'] = $data['username'];
-            $_SESSION['role'] = $data['role'];
-            $_SESSION['status'] = "login";
+        // ✅ Cek password: admin pakai MD5, user biasa pakai password_hash
+        $password_check = false;
+        if (strtolower($data['role']) === 'admin') {
+            $password_check = (md5($password) === $data['password']);
+        } else {
+            $password_check = password_verify($password, $data['password']);
+        }
+
+        if ($password_check) {
+
+            $_SESSION['id_user']       = $data['id_user'];
+            $_SESSION['username']      = $data['username'];
+            $_SESSION['role']          = strtolower($data['role']);
+            $_SESSION['status']        = "login";
             $_SESSION['last_activity'] = time();
 
             setcookie("username", $data['username'], time() + $session_timeout, "/");
 
-            header("Location: dashboard.php");
+            // Redirect berdasarkan role
+            if (strtolower($data['role']) === 'admin') {
+                header("Location: admin_dashboard.php");
+            } else {
+                header("Location: dashboard.php");
+            }
             exit();
-            
+
         } else {
             $error = "Password salah!";
         }
@@ -72,15 +82,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <p class="text-sm uppercase tracking-[0.25em] text-white/70 mb-4">
                         Marketplace Rekos
                     </p>
-
                     <h1 class="text-4xl md:text-5xl font-bold leading-tight mb-6">
                         Selamat Datang di Rekos
                     </h1>
-
                     <p class="text-white/85 text-base leading-8">
                         Platform yang dirancang untuk memfasilitasi jual beli barang kos bekas yang masih layak pakai, dengan tujuan membantu mahasiswa memperoleh kebutuhan kos dengan harga terjangkau serta mengurangi limbah barang yang masih dapat digunakan.
                     </p>
-
                     <div class="mt-8">
                         <a href="register.php"
                            class="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-600 transition">
@@ -118,7 +125,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 required
                             >
                         </div>
-
                         <div>
                             <label for="loginPassword" class="block mb-2 text-sm text-white/80">Password</label>
                             <input
@@ -130,7 +136,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 required
                             >
                         </div>
-
                         <button
                             type="submit"
                             class="w-full rounded-xl bg-emerald-500 py-3 text-base font-semibold text-white hover:bg-emerald-600 transition mt-4">

@@ -27,10 +27,10 @@ $res_user = $conn->prepare("SELECT * FROM tbl_user WHERE id_user = ?");
 $res_user->bind_param("i", $id_user);
 $res_user->execute();
 $user = $res_user->get_result()->fetch_assoc();
-$role_asli = $user['role'] ?? 'pembeli'; // role permanen di DB
+$role_asli = strtolower($user['role'] ?? 'pembeli'); // ✅ FIX: paksa huruf kecil
 
 // Role aktif = dari session (bisa di-switch lewat profil)
-$role = $_SESSION['role'] ?? $role_asli;
+$role = strtolower($_SESSION['role'] ?? $role_asli); // ✅ FIX: paksa huruf kecil
 
 $currentPage = basename($_SERVER['PHP_SELF']);
 
@@ -47,11 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['daftar_penjual'])) {
     if ($alamat === '' || $no_telp === '') {
         $upgrade_error = 'Alamat dan no. telepon wajib diisi.';
     } else {
-        $upd = $conn->prepare("UPDATE tbl_user SET role = 'penjual', alamat = ?, no_telp = ? WHERE id_user = ?");
+        $upd = $conn->prepare("UPDATE tbl_user SET role = 'Penjual', alamat = ?, no_telp = ? WHERE id_user = ?");
         $upd->bind_param("ssi", $alamat, $no_telp, $id_user);
         if ($upd->execute()) {
             $_SESSION['role'] = 'penjual';
             $role = 'penjual';
+            $role_asli = 'penjual';
             $upgrade_sukses = true;
         } else {
             $upgrade_error = 'Gagal mendaftar. Silakan coba lagi.';
@@ -189,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
         ══════════════════════════════════════════ -->
 
             <?php if ($role_asli === 'penjual'): ?>
-            <!-- Sudah terdaftar penjual tapi mode aktif = pembeli -->
+            <!-- ✅ Sudah terdaftar penjual tapi mode aktif = pembeli -->
             <div class="bg-white rounded-2xl shadow-md overflow-hidden">
                 <div class="bg-gradient-to-r from-yellow-400 to-orange-400 p-6 text-white">
                     <div class="flex items-center gap-4">
@@ -202,9 +203,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
                         </div>
                     </div>
                 </div>
-                <div class="p-6 text-center">
-                    <p class="text-slate-600 mb-2">Akun kamu sudah terdaftar sebagai <strong>Penjual Rekos</strong>.</p>
-                    <p class="text-slate-500 text-sm mb-6">Untuk mengupload barang, kamu perlu beralih ke <strong>Mode Penjual</strong> terlebih dahulu melalui halaman Profil.</p>
+                <div class="p-6">
+                    <!-- Notif info -->
+                    <div class="mb-5 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                        <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                        <div class="text-sm text-blue-700">
+                            <p class="font-semibold mb-1">Akun kamu sudah terdaftar sebagai Penjual Rekos!</p>
+                            <p>Untuk mengupload barang, kamu perlu beralih ke <strong>Mode Penjual</strong> terlebih dahulu. Caranya:</p>
+                            <ol class="list-decimal list-inside mt-2 space-y-1 text-blue-600">
+                                <li>Klik tombol <strong>"Ke Halaman Profil"</strong> di bawah</li>
+                                <li>Klik tombol <strong>"Beralih ke Mode Penjual"</strong></li>
+                                <li>Kembali ke halaman <strong>Jual Barang</strong></li>
+                            </ol>
+                        </div>
+                    </div>
                     <div class="flex flex-col sm:flex-row gap-3 justify-center">
                         <a href="profil.php"
                            class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition">
@@ -215,10 +227,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
                             <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
                         </a>
                     </div>
-                    <p class="mt-4 text-xs text-slate-400">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Di halaman Profil, klik tombol <strong>"Beralih ke Mode Penjual"</strong>
-                    </p>
                 </div>
             </div>
 
@@ -304,14 +312,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
                 <p class="text-slate-500 text-sm mb-6">Isi data barang dengan lengkap agar pembeli lebih mudah menemukan barangmu.</p>
 
                 <?php if (!empty($success)): ?>
-                <div class="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-700">
-                    <?= htmlspecialchars($success) ?>
+                <div class="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-green-700 flex items-center gap-2">
+                    <i class="fas fa-check-circle"></i> <?= htmlspecialchars($success) ?>
                 </div>
                 <?php endif; ?>
 
                 <?php if (!empty($error)): ?>
-                <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-                    <?= htmlspecialchars($error) ?>
+                <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 flex items-center gap-2">
+                    <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($error) ?>
                 </div>
                 <?php endif; ?>
 
@@ -328,6 +336,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
                         <textarea id="deskripsi" name="deskripsi" required
                             placeholder="Jelaskan kondisi barang, lama pemakaian, dan detail penting lainnya..."
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[140px]"></textarea>
+
+                        <!-- ✅ Tambahkan ini sebagai panduan penjual -->
+                        <div class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
+                            <p class="font-semibold mb-1"><i class="fas fa-lightbulb mr-1"></i> Tips pengisian deskripsi:</p>
+                            <ul class="list-disc list-inside space-y-0.5 text-blue-600">
+                                <li>Kondisi barang (bekas/baru, ada cacat/tidak)</li>
+                                <li>Lama pemakaian (misal: 1 tahun, 6 bulan)</li>
+                                <li>Lokasi COD / pengiriman</li>
+                                <li>Detail tambahan lainnya</li>
+                            </ul>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>

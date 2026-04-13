@@ -16,7 +16,12 @@ $query_user = $conn->prepare("SELECT email, no_telp, alamat, role FROM tbl_user 
 $query_user->bind_param("i", $id_user);
 $query_user->execute();
 $user_data  = $query_user->get_result()->fetch_assoc();
-$role_asli  = $user_data['role']; // role permanen di DB
+$role_asli  = strtolower($user_data['role']); // ✅ FIX: paksa huruf kecil
+
+// Paksa reset session role jika pembeli murni
+if ($role_asli === 'pembeli') {
+    $_SESSION['role'] = 'pembeli';
+}
 
 // Role aktif = dari session (bisa di-switch)
 $role = $_SESSION['role'] ?? $role_asli;

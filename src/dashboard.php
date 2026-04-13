@@ -19,32 +19,21 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 
 $_SESSION['last_activity'] = time();
 
 $username = $_SESSION['username'];
-$role = isset($_SESSION['role']) ? $_SESSION['role'] : 'Member';
+$role = strtolower(isset($_SESSION['role']) ? $_SESSION['role'] : 'pembeli'); // ✅ FIX: huruf kecil
 
 // Ambil keyword pencarian
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
-$items = []; // Array utama untuk menampung data yang akan ditampilkan
-
-// Data dummy fallback (cadangan jika DB kosong)
-$dummy_barang = [
-    ['id_barang' => 1, 'nama_barang' => 'Kipas Angin',        'deskripsi' => 'Kipas angin bekas layak pakai, merk Cosmos',         'harga' => 50000, 'jumlah' => 2, 'gambar' => 'kipas-angin.jpeg'],
-    ['id_barang' => 2, 'nama_barang' => 'Meja Belajar Lipat', 'deskripsi' => 'Meja belajar lipat portable, kondisi bagus',          'harga' => 35000, 'jumlah' => 1, 'gambar' => 'meja-belajar-lipat.jpg'],
-    ['id_barang' => 3, 'nama_barang' => 'Rice Cooker',        'deskripsi' => 'Rice cooker mini 0.5L, masih berfungsi normal',       'harga' => 65000, 'jumlah' => 1, 'gambar' => 'rice-cooker.jpeg'],
-    ['id_barang' => 4, 'nama_barang' => 'Lampu Belajar',      'deskripsi' => 'Lampu meja LED, hemat listrik',                       'harga' => 25000, 'jumlah' => 3, 'gambar' => ''],
-    ['id_barang' => 5, 'nama_barang' => 'Dispenser Mini',      'deskripsi' => 'Dispenser kecil cocok untuk kamar kos',               'harga' => 45000, 'jumlah' => 1, 'gambar' => ''],
-    ['id_barang' => 6, 'nama_barang' => 'Rak Buku',            'deskripsi' => 'Rak buku 3 susun, bahan kayu ringan',                 'harga' => 40000, 'jumlah' => 2, 'gambar' => ''],
-    ['id_barang' => 7, 'nama_barang' => 'Setrika',             'deskripsi' => 'Setrika listrik bekas, panas merata',                 'harga' => 30000, 'jumlah' => 1, 'gambar' => ''],
-    ['id_barang' => 8, 'nama_barang' => 'Cermin Dinding',      'deskripsi' => 'Cermin oval bingkai putih, ukuran sedang',            'harga' => 20000, 'jumlah' => 2, 'gambar' => ''],
-];
+$items = [];
 
 if ($keyword !== '') {
-    // 1. JIKA ADA PENCARIAN (Berdasarkan Keyword)
+    // Jika ada pencarian
     $stmt = mysqli_prepare(
-        $conn,
-        "SELECT * FROM tbl_barang 
-         WHERE nama_barang LIKE ? OR deskripsi LIKE ?
-         ORDER BY id_barang DESC"
-    );
+    $conn,
+    "SELECT * FROM tbl_barang 
+     WHERE (nama_barang LIKE ? OR deskripsi LIKE ?)
+     AND status_barang != 'terjual'
+     ORDER BY id_barang DESC"
+);
     $search = "%$keyword%";
     mysqli_stmt_bind_param($stmt, "ss", $search, $search);
     mysqli_stmt_execute($stmt);
@@ -54,30 +43,14 @@ if ($keyword !== '') {
         while ($row = mysqli_fetch_assoc($result)) {
             $items[] = $row;
         }
-    } else {
-        // Fallback pencarian ke data dummy jika di DB tidak ketemu
-        $keyword_lower = strtolower($keyword);
-        foreach ($dummy_barang as $item) {
-            if (
-                str_contains(strtolower($item['nama_barang']), $keyword_lower) ||
-                str_contains(strtolower($item['deskripsi']), $keyword_lower)
-            ) {
-                $items[] = $item;
-            }
-        }
     }
 } else {
-    // 2. JIKA TIDAK ADA PENCARIAN (Tampilkan Semua Barang dari Semua User)
-    $query = mysqli_query($conn, "SELECT * FROM tbl_barang ORDER BY id_barang DESC");
-    
+    // Tampilkan semua barang dari database
+    $query = mysqli_query($conn, "SELECT * FROM tbl_barang WHERE status_barang != 'terjual' ORDER BY id_barang DESC");
     if ($query && mysqli_num_rows($query) > 0) {
-        // Ambil semua data dari database
         while ($row = mysqli_fetch_assoc($query)) {
             $items[] = $row;
         }
-    } else {
-        // Jika database benar-benar kosong, gunakan data dummy agar tampilan tidak kosong
-        $items = $dummy_barang;
     }
 }
 ?>
@@ -180,8 +153,7 @@ if ($keyword !== '') {
                 <?php if (!empty($items)): ?>
                     <?php foreach ($items as $row): ?>
                         <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-lg transition duration-200">
-                            <?php 
-                                // Cek apakah gambar berasal dari dummy atau upload user
+                            <?php
                                 $gambarPath = 'https://placehold.co/400x250?text=No+Image';
                                 if (!empty($row['gambar'])) {
                                     if (file_exists('../assets/uploads/' . $row['gambar'])) {
@@ -192,16 +164,13 @@ if ($keyword !== '') {
                                 }
                             ?>
                             <img src="<?= $gambarPath ?>" class="w-full h-48 object-cover" alt="<?= htmlspecialchars($row['nama_barang']) ?>">
-                            
                             <div class="p-4 flex flex-col flex-grow">
                                 <h3 class="text-lg font-semibold text-slate-800 line-clamp-1"><?= htmlspecialchars($row['nama_barang']) ?></h3>
                                 <p class="text-blue-600 text-xl font-bold mt-1 mb-2">Rp <?= number_format($row['harga'], 0, ',', '.') ?></p>
-                                
                                 <div class="flex-grow">
                                     <p class="text-sm text-slate-500 mt-2 line-clamp-2"><?= htmlspecialchars($row['deskripsi']) ?></p>
                                     <p class="text-sm text-slate-500 font-medium mt-2">Stok: <?= (int)$row['jumlah'] ?> pcs</p>
                                 </div>
-                                
                                 <a href="detail_barang.php?id=<?= (int)$row['id_barang'] ?>"
                                    class="mt-4 block w-full text-center bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition font-medium shadow-sm">
                                     Lihat Detail
@@ -210,10 +179,23 @@ if ($keyword !== '') {
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <div class="col-span-full bg-white rounded-2xl shadow-md p-10 text-center">
-                        <i class="fas fa-box-open text-5xl text-slate-300 mb-4"></i>
-                        <h3 class="text-xl font-bold text-slate-800 mb-1">Barang Kosong</h3>
-                        <p class="text-slate-500">Belum ada barang yang tersedia saat ini atau kata kunci tidak ditemukan.</p>
+                    <!-- ✅ Tampil jika DB kosong atau pencarian tidak ketemu -->
+                    <div class="col-span-full bg-white rounded-2xl shadow-md p-12 text-center">
+                        <i class="fas fa-store-slash text-6xl text-slate-300 mb-5"></i>
+                        <?php if ($keyword !== ''): ?>
+                            <h3 class="text-xl font-bold text-slate-800 mb-2">Barang Tidak Ditemukan</h3>
+                            <p class="text-slate-500">Tidak ada barang yang cocok dengan kata kunci <strong>"<?= htmlspecialchars($keyword) ?>"</strong>.</p>
+                            <a href="dashboard.php" class="mt-4 inline-block text-blue-600 hover:underline text-sm">
+                                <i class="fas fa-arrow-left mr-1"></i> Lihat semua barang
+                            </a>
+                        <?php else: ?>
+                            <h3 class="text-xl font-bold text-slate-800 mb-2">Belum Ada Barang yang Dijual</h3>
+                            <p class="text-slate-500 mb-5">Jadilah yang pertama menjual barang di Rekos!</p>
+                            <a href="jual_barang.php"
+                               class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition">
+                                <i class="fas fa-plus-circle"></i> Jual Barang Sekarang
+                            </a>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>

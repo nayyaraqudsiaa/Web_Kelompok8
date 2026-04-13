@@ -7,6 +7,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
     $email    = strtolower($_POST['email']); // Ubah ke huruf kecil untuk validasi
     $password = $_POST['password'];
+    
+    // --- SET ROLE DEFAULT SEBAGAI PEMBELI ---
+    $role     = 'pembeli'; 
 
     // --- VALIDASI EMAIL KHUSUS UPN JATIM ---
     if (!str_ends_with($email, '@student.upnjatim.ac.id')) {

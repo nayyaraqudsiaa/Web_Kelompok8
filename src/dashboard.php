@@ -23,15 +23,14 @@ $role = isset($_SESSION['role']) ? $_SESSION['role'] : 'Member';
 
 // Ambil keyword pencarian
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
-$result = false;
-$dummy_results = [];
+$items = []; // Array utama untuk menampung data yang akan ditampilkan
 
-// Data dummy fallback
+// Data dummy fallback (cadangan jika DB kosong)
 $dummy_barang = [
     ['id_barang' => 1, 'nama_barang' => 'Kipas Angin',        'deskripsi' => 'Kipas angin bekas layak pakai, merk Cosmos',         'harga' => 50000, 'jumlah' => 2, 'gambar' => 'kipas-angin.jpeg'],
     ['id_barang' => 2, 'nama_barang' => 'Meja Belajar Lipat', 'deskripsi' => 'Meja belajar lipat portable, kondisi bagus',          'harga' => 35000, 'jumlah' => 1, 'gambar' => 'meja-belajar-lipat.jpg'],
-    ['id_barang' => 3, 'nama_barang' => 'Rice Cooker',         'deskripsi' => 'Rice cooker mini 0.5L, masih berfungsi normal',       'harga' => 65000, 'jumlah' => 1, 'gambar' => 'rice-cooker.jpeg'],
-    ['id_barang' => 4, 'nama_barang' => 'Lampu Belajar',       'deskripsi' => 'Lampu meja LED, hemat listrik',                       'harga' => 25000, 'jumlah' => 3, 'gambar' => ''],
+    ['id_barang' => 3, 'nama_barang' => 'Rice Cooker',        'deskripsi' => 'Rice cooker mini 0.5L, masih berfungsi normal',       'harga' => 65000, 'jumlah' => 1, 'gambar' => 'rice-cooker.jpeg'],
+    ['id_barang' => 4, 'nama_barang' => 'Lampu Belajar',      'deskripsi' => 'Lampu meja LED, hemat listrik',                       'harga' => 25000, 'jumlah' => 3, 'gambar' => ''],
     ['id_barang' => 5, 'nama_barang' => 'Dispenser Mini',      'deskripsi' => 'Dispenser kecil cocok untuk kamar kos',               'harga' => 45000, 'jumlah' => 1, 'gambar' => ''],
     ['id_barang' => 6, 'nama_barang' => 'Rak Buku',            'deskripsi' => 'Rak buku 3 susun, bahan kayu ringan',                 'harga' => 40000, 'jumlah' => 2, 'gambar' => ''],
     ['id_barang' => 7, 'nama_barang' => 'Setrika',             'deskripsi' => 'Setrika listrik bekas, panas merata',                 'harga' => 30000, 'jumlah' => 1, 'gambar' => ''],
@@ -39,6 +38,7 @@ $dummy_barang = [
 ];
 
 if ($keyword !== '') {
+    // 1. JIKA ADA PENCARIAN (Berdasarkan Keyword)
     $stmt = mysqli_prepare(
         $conn,
         "SELECT * FROM tbl_barang 
@@ -50,17 +50,34 @@ if ($keyword !== '') {
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
 
-    if (!$result || mysqli_num_rows($result) === 0) {
+    if ($result && mysqli_num_rows($result) > 0) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $items[] = $row;
+        }
+    } else {
+        // Fallback pencarian ke data dummy jika di DB tidak ketemu
         $keyword_lower = strtolower($keyword);
         foreach ($dummy_barang as $item) {
             if (
                 str_contains(strtolower($item['nama_barang']), $keyword_lower) ||
                 str_contains(strtolower($item['deskripsi']), $keyword_lower)
             ) {
-                $dummy_results[] = $item;
+                $items[] = $item;
             }
         }
-        $result = false;
+    }
+} else {
+    // 2. JIKA TIDAK ADA PENCARIAN (Tampilkan Semua Barang dari Semua User)
+    $query = mysqli_query($conn, "SELECT * FROM tbl_barang ORDER BY id_barang DESC");
+    
+    if ($query && mysqli_num_rows($query) > 0) {
+        // Ambil semua data dari database
+        while ($row = mysqli_fetch_assoc($query)) {
+            $items[] = $row;
+        }
+    } else {
+        // Jika database benar-benar kosong, gunakan data dummy agar tampilan tidak kosong
+        $items = $dummy_barang;
     }
 }
 ?>
@@ -104,8 +121,8 @@ if ($keyword !== '') {
             <a href="barang_saya.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
                 <i class="fas fa-box text-blue-400"></i> Barang Saya
             </a>
-            <a href="jual_barang.php" class="flex items-center gap-3 p-3 rounded-xl bg-blue-500/20 border border-blue-400/30">
-                <i class="fas fa-plus-circle"></i> Jual Barang
+            <a href="jual_barang.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
+                <i class="fas fa-plus-circle text-blue-400"></i> Jual Barang
             </a>
             <a href="profil.php" class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/10">
                 <i class="fas fa-user text-blue-400"></i> Profil
@@ -160,94 +177,45 @@ if ($keyword !== '') {
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-
-                <?php if ($keyword !== ''): ?>
-                    <?php
-                    $items = [];
-                    if ($result && mysqli_num_rows($result) > 0) {
-                        while ($row = mysqli_fetch_assoc($result)) {
-                            $items[] = $row;
-                        }
-                    } elseif (!empty($dummy_results)) {
-                        $items = $dummy_results;
-                    }
-                    ?>
-
-                    <?php if (!empty($items)): ?>
-                        <?php foreach ($items as $row): ?>
-                            <div class="bg-white rounded-2xl shadow-md overflow-hidden">
-                                <img
-                                    src="<?= !empty($row['gambar']) ? '../assets/img/' . htmlspecialchars($row['gambar']) : 'https://placehold.co/400x250?text=No+Image' ?>"
-                                    class="w-full h-48 object-cover"
-                                    alt="<?= htmlspecialchars($row['nama_barang']) ?>"
-                                >
-                                <div class="p-4">
-                                    <h3 class="text-lg font-semibold text-slate-800"><?= htmlspecialchars($row['nama_barang']) ?></h3>
-                                    <p class="text-blue-600 text-xl font-bold mt-1">Rp <?= number_format($row['harga'], 0, ',', '.') ?></p>
-                                    <p class="text-sm text-slate-500 mt-2"><?= htmlspecialchars($row['deskripsi']) ?></p>
-                                    <p class="text-sm text-slate-500">Stok: <?= (int)$row['jumlah'] ?></p>
-                                    <a href="detail_barang.php?id=<?= (int)$row['id_barang'] ?>"
-                                       class="mt-4 block w-full text-center bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition">
-                                        Lihat Detail
-                                    </a>
+                <?php if (!empty($items)): ?>
+                    <?php foreach ($items as $row): ?>
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-lg transition duration-200">
+                            <?php 
+                                // Cek apakah gambar berasal dari dummy atau upload user
+                                $gambarPath = 'https://placehold.co/400x250?text=No+Image';
+                                if (!empty($row['gambar'])) {
+                                    if (file_exists('../assets/uploads/' . $row['gambar'])) {
+                                        $gambarPath = '../assets/uploads/' . htmlspecialchars($row['gambar']);
+                                    } else {
+                                        $gambarPath = '../assets/img/' . htmlspecialchars($row['gambar']);
+                                    }
+                                }
+                            ?>
+                            <img src="<?= $gambarPath ?>" class="w-full h-48 object-cover" alt="<?= htmlspecialchars($row['nama_barang']) ?>">
+                            
+                            <div class="p-4 flex flex-col flex-grow">
+                                <h3 class="text-lg font-semibold text-slate-800 line-clamp-1"><?= htmlspecialchars($row['nama_barang']) ?></h3>
+                                <p class="text-blue-600 text-xl font-bold mt-1 mb-2">Rp <?= number_format($row['harga'], 0, ',', '.') ?></p>
+                                
+                                <div class="flex-grow">
+                                    <p class="text-sm text-slate-500 mt-2 line-clamp-2"><?= htmlspecialchars($row['deskripsi']) ?></p>
+                                    <p class="text-sm text-slate-500 font-medium mt-2">Stok: <?= (int)$row['jumlah'] ?> pcs</p>
                                 </div>
+                                
+                                <a href="detail_barang.php?id=<?= (int)$row['id_barang'] ?>"
+                                   class="mt-4 block w-full text-center bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition font-medium shadow-sm">
+                                    Lihat Detail
+                                </a>
                             </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <div class="col-span-full bg-white rounded-2xl shadow-md p-6">
-                            <p class="text-slate-600">Barang tidak ditemukan.</p>
                         </div>
-                    <?php endif; ?>
-
+                    <?php endforeach; ?>
                 <?php else: ?>
-
-                    <!-- PRODUK 1 -->
-                    <div class="bg-white rounded-2xl shadow-md overflow-hidden">
-                        <img src="../assets/img/meja-belajar-lipat.jpg" class="w-full h-48 object-cover" alt="Meja Belajar Lipat">
-                        <div class="p-4">
-                            <h3 class="text-lg font-semibold text-slate-800">Meja Belajar Lipat</h3>
-                            <p class="text-blue-600 text-xl font-bold mt-1">Rp 35.000</p>
-                            <p class="text-sm text-slate-500 mt-2">Kondisi: Bekas layak pakai</p>
-                            <p class="text-sm text-slate-500">Lokasi: Dekat kampus</p>
-                            <a href="detail_barang.php?id=2"
-                               class="mt-4 block w-full text-center bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition">
-                                Lihat Detail
-                            </a>
-                        </div>
+                    <div class="col-span-full bg-white rounded-2xl shadow-md p-10 text-center">
+                        <i class="fas fa-box-open text-5xl text-slate-300 mb-4"></i>
+                        <h3 class="text-xl font-bold text-slate-800 mb-1">Barang Kosong</h3>
+                        <p class="text-slate-500">Belum ada barang yang tersedia saat ini atau kata kunci tidak ditemukan.</p>
                     </div>
-
-                    <!-- PRODUK 2 -->
-                    <div class="bg-white rounded-2xl shadow-md overflow-hidden">
-                        <img src="../assets/img/kipas-angin.jpeg" class="w-full h-48 object-cover" alt="Kipas Angin">
-                        <div class="p-4">
-                            <h3 class="text-lg font-semibold text-slate-800">Kipas Angin</h3>
-                            <p class="text-blue-600 text-xl font-bold mt-1">Rp 50.000</p>
-                            <p class="text-sm text-slate-500 mt-2">Kondisi: Bekas layak pakai</p>
-                            <p class="text-sm text-slate-500">Lokasi: Kos Putri Mawar</p>
-                            <a href="detail_barang.php?id=1"
-                               class="mt-4 block w-full text-center bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition">
-                                Lihat Detail
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- PRODUK 3 -->
-                    <div class="bg-white rounded-2xl shadow-md overflow-hidden">
-                        <img src="../assets/img/rice-cooker.jpeg" class="w-full h-48 object-cover" alt="Rice Cooker">
-                        <div class="p-4">
-                            <h3 class="text-lg font-semibold text-slate-800">Rice Cooker</h3>
-                            <p class="text-blue-600 text-xl font-bold mt-1">Rp 65.000</p>
-                            <p class="text-sm text-slate-500 mt-2">Kondisi: Bekas layak pakai</p>
-                            <p class="text-sm text-slate-500">Lokasi: Area kampus</p>
-                            <a href="detail_barang.php?id=3"
-                               class="mt-4 block w-full text-center bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition">
-                                Lihat Detail
-                            </a>
-                        </div>
-                    </div>
-
                 <?php endif; ?>
-
             </div>
         </div>
     </main>

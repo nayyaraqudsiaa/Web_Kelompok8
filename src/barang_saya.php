@@ -122,7 +122,7 @@ $result = $stmt->get_result();
         </div>
     </aside>
 
-    <main class="ml-64 p-8 bg-gray-100 min-h-screen">
+    <main class="ml-64 p-8 bg-gray-100 min-h-screen text-slate-800">
         <header class="bg-blue-800 rounded-2xl p-6 mb-8 shadow text-white">
             <div class="flex justify-between items-center">
                 <div>
@@ -161,32 +161,94 @@ $result = $stmt->get_result();
 
             <?php if ($result->num_rows > 0): ?>
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <?php while ($row = $result->fetch_assoc()): ?>
-                        <div class="bg-white rounded-2xl shadow-md overflow-hidden">
-                            <img
-                                src="<?= !empty($row['gambar']) ? '../assets/img/' . htmlspecialchars($row['gambar']) : 'https://via.placeholder.com/400x250?text=No+Image' ?>"
-                                class="w-full h-56 object-cover"
-                                alt="<?= htmlspecialchars($row['nama_barang']) ?>"
-                            >
+                    <?php while ($row = $result->fetch_assoc()): 
+                        $is_booked = (isset($row['status_barang']) && $row['status_barang'] == 'dibooking');
+                        $waktu_target = 0;
+                        if ($is_booked && !empty($row['waktu_beli'])) {
+                            // Target 24 jam dari waktu_beli
+                            $waktu_target = strtotime($row['waktu_beli']) + (24 * 3600);
+                        }
+                    ?>
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col hover:shadow-lg transition">
+                            
+                            <a href="detail_barang.php?id=<?= $row['id_barang'] ?>" class="group flex flex-col relative flex-1 cursor-pointer">
+                                <div class="relative overflow-hidden">
+                                    <img
+                                        src="<?= !empty($row['gambar']) ? '../assets/img/' . htmlspecialchars($row['gambar']) : 'https://via.placeholder.com/400x250?text=No+Image' ?>"
+                                        class="w-full h-56 object-cover group-hover:scale-105 transition duration-300"
+                                        alt="<?= htmlspecialchars($row['nama_barang']) ?>"
+                                    >
+                                    
+                                    <?php if(isset($row['status_barang']) && $row['status_barang'] == 'terjual'): ?>
+                                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                            <span class="bg-red-500 text-white px-5 py-2 rounded-full font-bold shadow-lg tracking-wider">TERJUAL</span>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
 
-                            <div class="p-5">
-                                <h3 class="text-lg font-semibold text-slate-800">
-                                    <?= htmlspecialchars($row['nama_barang']) ?>
-                                </h3>
+                                <div class="p-5 flex-1 flex flex-col">
+                                    <h3 class="text-lg font-semibold text-slate-800">
+                                        <?= htmlspecialchars($row['nama_barang']) ?>
+                                    </h3>
 
-                                <p class="text-blue-600 text-2xl font-bold mt-2">
-                                    Rp <?= number_format($row['harga'], 0, ',', '.') ?>
-                                </p>
+                                    <p class="text-blue-600 text-2xl font-bold mt-1">
+                                        Rp <?= number_format($row['harga'], 0, ',', '.') ?>
+                                    </p>
 
-                                <p class="text-sm text-slate-500 mt-3">
-                                    <?= htmlspecialchars($row['deskripsi']) ?>
-                                </p>
+                                    <p class="text-sm text-slate-500 mt-2 line-clamp-2">
+                                        <?= htmlspecialchars($row['deskripsi']) ?>
+                                    </p>
 
-                                <p class="text-sm text-slate-500 mt-2">
-                                    Stok: <?= (int)$row['jumlah'] ?>
-                                </p>
+                                    <p class="text-sm text-slate-500 mt-auto pt-4">
+                                        Stok: <span class="font-semibold text-slate-700"><?= (int)$row['jumlah'] ?></span>
+                                    </p>
+                                </div>
+                            </a>
 
-                                <div class="mt-5 flex gap-3">
+                            <div class="p-5 border-t border-slate-100 bg-slate-50">
+                                
+                                <?php if ($is_booked): ?>
+                                    <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 shadow-inner">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <span class="text-xs font-bold text-orange-700 flex items-center gap-1">
+                                                <i class="fas fa-clock animate-pulse"></i> DIBOOKING
+                                            </span>
+                                            <div id="timer-<?= $row['id_barang'] ?>" class="text-red-600 font-mono font-bold text-sm bg-white px-2 py-1 border border-orange-200 rounded">
+                                                00:00:00
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <a href="proses_konfirmasi.php?id=<?= $row['id_barang'] ?>" onclick="return confirm('Apakah Anda yakin transaksi ini berhasil? Barang akan ditandai Terjual.')" class="flex-1 bg-green-500 text-white text-center py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition shadow-sm">
+                                                Konfirmasi
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <script>
+                                        setInterval(function() {
+                                            let deadline = <?= $waktu_target ?> * 1000;
+                                            let sekarang = new Date().getTime();
+                                            let selisih = deadline - sekarang;
+
+                                            let el = document.getElementById("timer-<?= $row['id_barang'] ?>");
+                                            if (selisih > 0) {
+                                                let jam = Math.floor((selisih % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                                let menit = Math.floor((selisih % (1000 * 60 * 60)) / (1000 * 60));
+                                                let detik = Math.floor((selisih % (1000 * 60)) / 1000);
+                                                
+                                                jam = jam.toString().padStart(2, '0');
+                                                menit = menit.toString().padStart(2, '0');
+                                                detik = detik.toString().padStart(2, '0');
+
+                                                if(el) el.innerHTML = jam + ":" + menit + ":" + detik;
+                                            } else {
+                                                if(el) el.innerHTML = "WAKTU HABIS";
+                                            }
+                                        }, 1000);
+                                    </script>
+                                <?php endif; ?>
+
+                                <div class="flex gap-3">
                                     <a
                                         href="#"
                                         class="flex-1 rounded-xl bg-slate-200 py-2 text-center font-medium text-slate-700 hover:bg-slate-300 transition">
@@ -198,6 +260,7 @@ $result = $stmt->get_result();
                                         Hapus
                                     </a>
                                 </div>
+
                             </div>
                         </div>
                     <?php endwhile; ?>

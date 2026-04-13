@@ -1,23 +1,20 @@
 <?php
-// Include koneksi ke database
 require 'koneksi.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // Menangkap data dari form
     $username = $_POST['username'];
-    $email    = strtolower($_POST['email']); // Ubah ke huruf kecil untuk validasi
+    $email    = strtolower($_POST['email']);
     $password = $_POST['password'];
     
-    // --- SET ROLE DEFAULT SEBAGAI PEMBELI ---
     $role     = 'pembeli'; 
 
-    // --- VALIDASI EMAIL KHUSUS UPN JATIM ---
+    // Validasi email upn
     if (!str_ends_with($email, '@student.upnjatim.ac.id')) {
         echo "<script>alert('Registrasi gagal! Hanya email mahasiswa UPN Jatim (@student.upnjatim.ac.id) yang diizinkan.'); window.history.back();</script>";
-        exit; // Hentikan proses jika bukan email UPN
+        exit;
     }
 
-    // 1. Cek apakah email sudah terdaftar sebelumnya
+    // Cek apakah email sudah terdaftar sebelumnya
     $cek_email = $conn->prepare("SELECT email FROM tbl_user WHERE email = ?");
     $cek_email->bind_param("s", $email);
     $cek_email->execute();
@@ -26,10 +23,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($cek_email->num_rows > 0) {
         echo "<script>alert('Email sudah terdaftar! Silakan gunakan email lain.'); window.history.back();</script>";
     } else {
-        // 2. Hash password demi keamanan
+        // Hash password
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-        // 3. Simpan data ke database
+        // Simpan db
         $stmt = $conn->prepare("INSERT INTO tbl_user (username, email, password, role) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("ssss", $username, $email, $hashed_password, $role);
 
@@ -110,32 +107,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         const passwordInput = document.getElementById('regPassword').value;
         const confirmInput = document.getElementById('regKonfirmasiPassword').value;
 
-        // Validasi Nama
+        // Validasi nama
         const nameRegex = /^[a-zA-Z\s]+$/;
         if (!nameRegex.test(nameInput)) {
             alert("Nama hanya bisa berisi huruf dan spasi!");
             return false;
         }
 
-        // Validasi Ekstensi Email UPN Jatim
+        // Validasi email upn
         if (!emailInput.endsWith('@student.upnjatim.ac.id')) {
             alert("Harap gunakan email mahasiswa UPN Jatim (@student.upnjatim.ac.id)!");
             return false;
         }
 
-        // Validasi Kekuatan Password
+        // Validasi password
         const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
         if (!passwordRegex.test(passwordInput)) {
             alert("Password minimal 8 karakter dan harus mengandung kombinasi huruf dan angka!");
             return false;
         }
 
-        // Validasi Kecocokan Password
+        // Validasi kecocokan password
         if (passwordInput !== confirmInput) {
             alert("Password dan Konfirmasi Password tidak sesuai!");
             return false;
         }
-
         return true;
     }
     </script>

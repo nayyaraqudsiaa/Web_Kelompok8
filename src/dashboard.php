@@ -19,7 +19,7 @@ if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 
 $_SESSION['last_activity'] = time();
 
 $username = $_SESSION['username'];
-$role = strtolower(isset($_SESSION['role']) ? $_SESSION['role'] : 'pembeli'); // ✅ FIX: huruf kecil
+$role = strtolower(isset($_SESSION['role']) ? $_SESSION['role'] : 'pembeli');
 
 // Ambil keyword pencarian
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
@@ -179,7 +179,7 @@ if ($keyword !== '') {
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <!-- ✅ Tampil jika DB kosong atau pencarian tidak ketemu -->
+                    <!-- Tampil jika DB kosong atau pencarian tidak ketemu -->
                     <div class="col-span-full bg-white rounded-2xl shadow-md p-12 text-center">
                         <i class="fas fa-store-slash text-6xl text-slate-300 mb-5"></i>
                         <?php if ($keyword !== ''): ?>

@@ -16,7 +16,7 @@ $query_user = $conn->prepare("SELECT email, no_telp, alamat, role FROM tbl_user 
 $query_user->bind_param("i", $id_user);
 $query_user->execute();
 $user_data  = $query_user->get_result()->fetch_assoc();
-$role_asli  = strtolower($user_data['role']); // ✅ FIX: paksa huruf kecil
+$role_asli  = strtolower($user_data['role']);
 
 // Paksa reset session role jika pembeli murni
 if ($role_asli === 'pembeli') {
@@ -26,9 +26,7 @@ if ($role_asli === 'pembeli') {
 // Role aktif = dari session (bisa di-switch)
 $role = $_SESSION['role'] ?? $role_asli;
 
-// ════════════════════════════════════════════
 // PROSES: Switch role (hanya jika role_asli = penjual)
-// ════════════════════════════════════════════
 if (isset($_POST['switch_role']) && $role_asli === 'penjual') {
     if ($role === 'penjual') {
         $_SESSION['role'] = 'pembeli';
@@ -41,9 +39,7 @@ if (isset($_POST['switch_role']) && $role_asli === 'penjual') {
 
 $role = $_SESSION['role'] ?? $role_asli;
 
-// ════════════════════════════════════════════
 // Riwayat transaksi berdasarkan role AKTIF
-// ════════════════════════════════════════════
 if ($role == 'pembeli') {
     $query_histori = $conn->prepare("
         SELECT t.tanggal, b.nama_barang, b.harga, t.status 

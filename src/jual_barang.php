@@ -4,13 +4,11 @@ require 'koneksi.php';
 
 $session_timeout = 600;
 
-// Cek login
 if (!isset($_SESSION['username']) || !isset($_SESSION['status'])) {
     header("Location: login.php");
     exit();
 }
 
-// Cek timeout
 if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $session_timeout)) {
     session_unset();
     session_destroy();
@@ -22,21 +20,19 @@ $_SESSION['last_activity'] = time();
 $id_user  = $_SESSION['id_user'];
 $username = $_SESSION['username'];
 
-// Ambil data user dari DB
+// Ambil data user dari db
 $res_user = $conn->prepare("SELECT * FROM tbl_user WHERE id_user = ?");
 $res_user->bind_param("i", $id_user);
 $res_user->execute();
 $user = $res_user->get_result()->fetch_assoc();
-$role_asli = strtolower($user['role'] ?? 'pembeli'); // ✅ FIX: paksa huruf kecil
+$role_asli = strtolower($user['role'] ?? 'pembeli');
 
-// Role aktif = dari session (bisa di-switch lewat profil)
-$role = strtolower($_SESSION['role'] ?? $role_asli); // ✅ FIX: paksa huruf kecil
+// Switch role
+$role = strtolower($_SESSION['role'] ?? $role_asli);
 
 $currentPage = basename($_SERVER['PHP_SELF']);
 
-// ════════════════════════════════════════════════════════════
 // PROSES 1: Daftar sebagai penjual
-// ════════════════════════════════════════════════════════════
 $upgrade_sukses = false;
 $upgrade_error  = '';
 
@@ -60,9 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['daftar_penjual'])) {
     }
 }
 
-// ════════════════════════════════════════════════════════════
 // PROSES 2: Upload barang (hanya jika sudah penjual)
-// ════════════════════════════════════════════════════════════
 $success = '';
 $error   = '';
 
@@ -185,12 +179,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
         <div class="max-w-4xl mx-auto">
 
         <?php if ($role !== 'penjual'): ?>
-        <!-- ══════════════════════════════════════════
-             BUKAN MODE PENJUAL
-        ══════════════════════════════════════════ -->
+        <!--BUKAN MODE PENJUAL-->
 
             <?php if ($role_asli === 'penjual'): ?>
-            <!-- ✅ Sudah terdaftar penjual tapi mode aktif = pembeli -->
+            <!-- Sudah terdaftar penjual tapi mode aktif = pembeli -->
             <div class="bg-white rounded-2xl shadow-md overflow-hidden">
                 <div class="bg-gradient-to-r from-yellow-400 to-orange-400 p-6 text-white">
                     <div class="flex items-center gap-4">
@@ -304,9 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
             <?php endif; ?>
 
         <?php else: ?>
-        <!-- ══════════════════════════════════════════
-             SUDAH PENJUAL → Form upload barang
-        ══════════════════════════════════════════ -->
+        <!-- SUDAH PENJUAL → Form upload barang -->
             <div class="bg-white rounded-2xl shadow-md p-8">
                 <h2 class="text-2xl font-bold text-slate-800 mb-2">Form Jual Barang</h2>
                 <p class="text-slate-500 text-sm mb-6">Isi data barang dengan lengkap agar pembeli lebih mudah menemukan barangmu.</p>
@@ -337,7 +327,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['jual_barang']) && $ro
                             placeholder="Jelaskan kondisi barang, lama pemakaian, dan detail penting lainnya..."
                             class="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 min-h-[140px]"></textarea>
 
-                        <!-- ✅ Tambahkan ini sebagai panduan penjual -->
+                        <!-- Tambahkan ini sebagai panduan penjual -->
                         <div class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
                             <p class="font-semibold mb-1"><i class="fas fa-lightbulb mr-1"></i> Tips pengisian deskripsi:</p>
                             <ul class="list-disc list-inside space-y-0.5 text-blue-600">

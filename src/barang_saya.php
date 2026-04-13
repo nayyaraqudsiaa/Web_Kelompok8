@@ -226,10 +226,10 @@ $result = $stmt->get_result();
                                     </script>
                                 <?php endif; ?>
 
-                                <!-- ✅ Tombol Edit & Hapus -->
+                                <!--Tombol Edit & Hapus -->
                                 <div class="flex gap-3">
-                                    <a href="#"
-                                       class="flex-1 rounded-xl bg-slate-200 py-2 text-center font-medium text-slate-700 hover:bg-slate-300 transition">
+                                    <a href="edit_barang.php?id=<?= $row['id_barang'] ?>"
+                                        class="flex-1 rounded-xl bg-slate-200 py-2 text-center font-medium text-slate-700 hover:bg-slate-300 transition">
                                         Edit
                                     </a>
                                     <form method="POST" class="flex-1"

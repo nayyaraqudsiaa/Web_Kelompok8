@@ -30,7 +30,7 @@ $id_penjual  = (int)$barang['id_penjual'];
 $sudah_bayar = false;
 $pesan_error = '';
 
-// ── Proses Bayar ─────────────────────────────────────────────────────────────
+// Proses Bayar
 if (isset($_POST['bayar'])) {
     mysqli_begin_transaction($conn);
     try {

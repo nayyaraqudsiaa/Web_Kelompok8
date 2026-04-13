@@ -4,7 +4,7 @@ include "koneksi.php";
 
 $session_timeout = 600; // 10 menit
 
-// Cek jika sudah login, redirect sesuai role
+// Cek login
 if (isset($_SESSION['username']) && isset($_SESSION['status']) && $_SESSION['status'] == 'login') {
     $role_cek = strtolower($_SESSION['role'] ?? '');
     if ($role_cek === 'admin') {
@@ -26,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($query && mysqli_num_rows($query) > 0) {
         $data = mysqli_fetch_assoc($query);
 
-        // ✅ Cek password: admin pakai MD5, user biasa pakai password_hash
+        // Cek password: admin pakai MD5, user biasa pakai password_hash
         $password_check = false;
         if (strtolower($data['role']) === 'admin') {
             $password_check = (md5($password) === $data['password']);

@@ -14,12 +14,12 @@ $role     = isset($_SESSION['role']) ? $_SESSION['role'] : 'Member';
 // Ambil id_user yang login
 $res_user     = mysqli_query($conn, "SELECT id_user FROM tbl_user WHERE username = '" . mysqli_real_escape_string($conn, $username) . "'");
 $current_user = mysqli_fetch_assoc($res_user);
-$id_pembeli   = $current_user ? (int)$current_user['id_user'] : 0;
+$id_pembeli   = $current_user ? (int)$current_user['id_user'] : 0; // ID User yang sedang login
 
 // Ambil id_barang dari URL
 $id_barang = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-// ── Ambil data barang ────────────────────────────────────────────────────────
+// Ambil data barang
 $barang = null;
 
 if ($id_barang > 0) {
@@ -42,7 +42,7 @@ $id_penjual = (int)$barang['id_penjual'];
 $pesan_sukses = '';
 $pesan_error  = '';
 
-// ── Cek Status Booking ───────────────────────────────────────────────────────
+// Cek Status Booking
 $is_buying   = false;
 $waktu_habis = 0;
 
@@ -66,47 +66,84 @@ if (isset($barang['status_barang']) && $barang['status_barang'] == 'dibooking') 
 
 $ada_pembeli = (isset($barang['id_pembeli']) && $barang['id_pembeli'] > 0);
 
-// Chat selalu tampil kecuali penjual lihat barangnya sendiri atau barang terjual
+// Ambil ID pembeli spesifik dari URL jika penjual ingin membalas chat
+$chat_buyer_id = isset($_GET['buyer_id']) ? (int)$_GET['buyer_id'] : 0;
+$target_pembeli = 0;
+
+if ($id_pembeli !== $id_penjual) {
+    // Jika yang login adalah pembeli, target chat-nya adalah dirinya sendiri
+    $target_pembeli = $id_pembeli;
+} else {
+    // Jika yang login adalah penjual
+    if ($chat_buyer_id > 0) {
+        $target_pembeli = $chat_buyer_id;
+    } elseif ($ada_pembeli) {
+        $target_pembeli = (int)$barang['id_pembeli'];
+    }
+}
+
+// Ambil daftar calon pembeli yang pernah chat barang ini (Khusus untuk Penjual)
+$daftar_inbox = [];
+if ($id_pembeli === $id_penjual) {
+    $q_inbox = mysqli_prepare($conn, "SELECT DISTINCT p.id_pembeli, u.username FROM tbl_pesan p JOIN tbl_user u ON p.id_pembeli = u.id_user WHERE p.id_barang = ? AND p.id_pembeli != ?");
+    mysqli_stmt_bind_param($q_inbox, "ii", $id_barang, $id_penjual);
+    mysqli_stmt_execute($q_inbox);
+    $res_inbox = mysqli_stmt_get_result($q_inbox);
+    while ($row = mysqli_fetch_assoc($res_inbox)) {
+        $daftar_inbox[] = $row;
+    }
+}
+
+// Penentuan tampilan Box Chat
 $show_chat = true;
-if ($id_pembeli === $id_penjual && !$ada_pembeli) {
-    $show_chat = false;
+if ($id_pembeli === $id_penjual && $target_pembeli === 0) {
+    // Penjual belum memilih siapa pembeli yang diajak chat
+    $show_chat = false; 
 }
 if (isset($barang['status_barang']) && $barang['status_barang'] == 'terjual') {
     $show_chat = false;
 }
 
-// ── Kirim pesan ──────────────────────────────────────────────────────────────
+// Kirim pesan
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['isi_pesan']) && $show_chat) {
     $isi_pesan = trim($_POST['isi_pesan']);
     if ($isi_pesan === '') {
         $pesan_error = 'Pesan tidak boleh kosong.';
     } else {
-        $insert_buyer_id = ($id_pembeli === $id_penjual) ? (int)$barang['id_pembeli'] : $id_pembeli;
-        $id_pengirim     = $id_pembeli;
+        $insert_buyer_id = $target_pembeli;
+        $id_pengirim     = $id_pembeli; // Selalu ID yang sedang login
 
         $stmt2 = mysqli_prepare($conn, "INSERT INTO tbl_pesan (id_pembeli, id_penjual, id_barang, id_pengirim, isi_pesan, waktu_kirim, status_baca) VALUES (?, ?, ?, ?, ?, NOW(), 0)");
         mysqli_stmt_bind_param($stmt2, "iiiis", $insert_buyer_id, $id_penjual, $id_barang, $id_pengirim, $isi_pesan);
         if (mysqli_stmt_execute($stmt2)) {
             $pesan_sukses = 'Pesan berhasil dikirim!';
+            // Hindari resubmit form saat refresh
+            header("Location: detail_barang.php?id=" . $id_barang . ($chat_buyer_id > 0 ? "&buyer_id=".$chat_buyer_id : ""));
+            exit();
         } else {
             $pesan_error = 'Gagal mengirim pesan. Coba lagi.';
         }
     }
 }
 
-// ── Ambil riwayat chat ───────────────────────────────────────────────────────
+// Ambil riwayat chat
 $chats = [];
-if ($show_chat) {
-    $chat_pembeli = ($id_pembeli === $id_penjual) ? (int)$barang['id_pembeli'] : $id_pembeli;
-    if ($chat_pembeli > 0) {
-        $stmt3 = mysqli_prepare($conn, "SELECT p.*, ub.username as nama_pembeli, uj.username as nama_penjual FROM tbl_pesan p LEFT JOIN tbl_user ub ON p.id_pembeli = ub.id_user LEFT JOIN tbl_user uj ON p.id_penjual = uj.id_user WHERE p.id_barang = ? AND p.id_pembeli = ? AND p.id_penjual = ? ORDER BY p.waktu_kirim ASC");
-        mysqli_stmt_bind_param($stmt3, "iii", $id_barang, $chat_pembeli, $id_penjual);
-        mysqli_stmt_execute($stmt3);
-        $res3 = mysqli_stmt_get_result($stmt3);
-        while ($c = mysqli_fetch_assoc($res3)) {
-            $chats[] = $c;
-        }
+if ($show_chat && $target_pembeli > 0) {
+    $stmt3 = mysqli_prepare($conn, "SELECT p.*, ub.username as nama_pembeli, uj.username as nama_penjual FROM tbl_pesan p LEFT JOIN tbl_user ub ON p.id_pembeli = ub.id_user LEFT JOIN tbl_user uj ON p.id_penjual = uj.id_user WHERE p.id_barang = ? AND p.id_pembeli = ? AND p.id_penjual = ? ORDER BY p.waktu_kirim ASC");
+    mysqli_stmt_bind_param($stmt3, "iii", $id_barang, $target_pembeli, $id_penjual);
+    mysqli_stmt_execute($stmt3);
+    $res3 = mysqli_stmt_get_result($stmt3);
+    while ($c = mysqli_fetch_assoc($res3)) {
+        $chats[] = $c;
     }
+}
+
+// Untuk mengambil nama lawan bicara di header chat
+$nama_lawan_bicara = 'Pembeli';
+if (!empty($chats)) {
+    $nama_lawan_bicara = ($id_pembeli === $id_penjual) ? $chats[0]['nama_pembeli'] : $chats[0]['nama_penjual'];
+} elseif ($id_pembeli !== $id_penjual) {
+    $nama_lawan_bicara = $barang['nama_penjual'] ?? 'Penjual';
 }
 ?>
 <!doctype html>
@@ -145,13 +182,12 @@ if ($show_chat) {
     </aside>
 
     <main class="ml-64 p-8 bg-gray-100 min-h-screen text-slate-800">
-        <a href="dashboard.php" class="inline-flex items-center gap-2 text-blue-700 hover:text-blue-900 mb-6 font-medium">
-            <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
+        <a href="<?= ($id_pembeli === $id_penjual && $target_pembeli > 0) ? 'detail_barang.php?id='.$id_barang : 'dashboard.php' ?>" class="inline-flex items-center gap-2 text-blue-700 hover:text-blue-900 mb-6 font-medium">
+            <i class="fas fa-arrow-left"></i> <?= ($id_pembeli === $id_penjual && $target_pembeli > 0) ? 'Kembali ke Daftar Pesan' : 'Kembali ke Dashboard' ?>
         </a>
 
-        <div class="max-w-6xl mx-auto grid grid-cols-1 <?= $show_chat ? 'lg:grid-cols-2' : '' ?> gap-8">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-            <!-- ── Kartu Barang ── -->
             <div>
                 <div class="bg-white rounded-2xl shadow-md overflow-hidden">
                     <img src="<?= !empty($barang['gambar']) ? '../assets/img/' . htmlspecialchars($barang['gambar']) : 'https://placehold.co/600x400?text=No+Image' ?>"
@@ -178,11 +214,9 @@ if ($show_chat) {
                         </div>
                         <?php endif; ?>
 
-                        <!-- ── Tombol Aksi ── -->
                         <?php if ($id_pembeli !== $id_penjual): ?>
 
                             <?php if (!isset($barang['status_barang']) || $barang['status_barang'] == 'tersedia'): ?>
-                                <!-- ✅ Info + Tombol Beli → ke bayar.php -->
                                 <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
                                     <i class="fas fa-info-circle mr-1"></i>
                                     Tanya dulu ke penjual via chat, lalu klik <strong>Beli Barang</strong> jika sudah deal.
@@ -222,24 +256,52 @@ if ($show_chat) {
                 </div>
             </div>
 
-            <!-- ── Kotak Chat ── -->
-            <?php if ($show_chat): ?>
             <div class="flex flex-col gap-4">
+
+                <?php if ($id_pembeli === $id_penjual && $target_pembeli === 0 && (!isset($barang['status_barang']) || $barang['status_barang'] !== 'terjual')): ?>
+                    <?php if (!empty($daftar_inbox)): ?>
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden p-6">
+                            <h3 class="text-lg font-bold text-slate-800 mb-4"><i class="fas fa-inbox text-blue-500 mr-2"></i>Pesan dari Calon Pembeli</h3>
+                            <div class="space-y-3">
+                                <?php foreach ($daftar_inbox as $inbox): ?>
+                                    <a href="detail_barang.php?id=<?= $id_barang ?>&buyer_id=<?= $inbox['id_pembeli'] ?>" class="flex items-center gap-4 p-4 border border-slate-200 rounded-xl hover:bg-blue-50 hover:border-blue-300 transition group">
+                                        <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                                            <?= strtoupper(substr($inbox['username'], 0, 1)) ?>
+                                        </div>
+                                        <div>
+                                            <p class="font-bold text-slate-700 group-hover:text-blue-700"><?= htmlspecialchars($inbox['username']) ?></p>
+                                            <p class="text-xs text-slate-500">Klik untuk melihat pesan</p>
+                                        </div>
+                                        <i class="fas fa-chevron-right ml-auto text-slate-300 group-hover:text-blue-500"></i>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <div class="bg-white rounded-2xl shadow-md overflow-hidden p-6 text-center text-slate-500 min-h-[300px] flex flex-col items-center justify-center">
+                            <i class="fas fa-comments text-5xl mb-4 text-slate-300"></i>
+                            <p>Belum ada pesan masuk untuk barang ini.</p>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+
+                <?php if ($show_chat): ?>
                 <div class="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col" style="min-height: 500px;">
 
                     <div class="bg-blue-700 text-white px-5 py-4 flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center font-bold text-lg shadow-inner">
-                            <?= strtoupper(substr($id_pembeli === $id_penjual ? ($barang['nama_pembeli'] ?? 'P') : ($barang['nama_penjual'] ?? 'P'), 0, 1)) ?>
+                            <?= strtoupper(substr($nama_lawan_bicara, 0, 1)) ?>
                         </div>
                         <div>
                             <p class="font-semibold">
-                                <?= $id_pembeli === $id_penjual ? 'Pembeli' : htmlspecialchars($barang['nama_penjual'] ?? 'Penjual') ?>
+                                <?= htmlspecialchars($nama_lawan_bicara) ?>
                             </p>
                             <p class="text-xs text-blue-200">
                                 <?php if ($is_buying || $ada_pembeli): ?>
                                     <i class="fas fa-circle text-green-400 text-[10px]"></i> Sedang Transaksi
                                 <?php else: ?>
-                                    <i class="fas fa-circle text-yellow-300 text-[10px]"></i> Tanya Penjual
+                                    <i class="fas fa-circle text-yellow-300 text-[10px]"></i> Tanya Jawab
                                 <?php endif; ?>
                             </p>
                         </div>
@@ -279,7 +341,7 @@ if ($show_chat) {
 
                     <?php if (!isset($barang['status_barang']) || $barang['status_barang'] !== 'terjual'): ?>
                     <form method="POST" class="p-4 bg-white border-t border-slate-200 flex gap-2">
-                        <input type="text" name="isi_pesan" placeholder="Ketik pesan ke penjual..." required
+                        <input type="text" name="isi_pesan" placeholder="Ketik pesan..." required
                                class="flex-1 border border-slate-300 rounded-xl px-4 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
                         <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl transition shadow-md">
                             <i class="fas fa-paper-plane"></i>
@@ -292,8 +354,9 @@ if ($show_chat) {
                     <?php endif; ?>
 
                 </div>
+                <?php endif; ?>
+
             </div>
-            <?php endif; ?>
 
         </div>
     </main>

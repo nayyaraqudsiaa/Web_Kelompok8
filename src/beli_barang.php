@@ -19,7 +19,7 @@ $id_user = $current_user ? (int)$current_user['id_user'] : 0;
 // Ambil id_barang dari URL
 $id_barang = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
-// ── Data dummy ───────────────────────────────────────────────────────────────
+// Data dummy
 $dummy_barang = [
     1 => ['id_barang'=>1,'nama_barang'=>'Kipas Angin','deskripsi'=>'Kipas angin bekas layak pakai, merk Cosmos.','harga'=>50000,'jumlah'=>2,'gambar'=>'kipas-angin.jpeg','kondisi'=>'Bekas','lama_pakai'=>'1 tahun','lokasi'=>'Kos Putri Mawar','id_user'=>1],
     2 => ['id_barang'=>2,'nama_barang'=>'Meja Belajar Lipat','deskripsi'=>'Meja belajar lipat portable, kondisi bagus.','harga'=>35000,'jumlah'=>1,'gambar'=>'meja-belajar-lipat.jpg','kondisi'=>'Bekas','lama_pakai'=>'6 bulan','lokasi'=>'Dekat kampus','id_user'=>1],
@@ -31,7 +31,7 @@ $dummy_barang = [
     8 => ['id_barang'=>8,'nama_barang'=>'Cermin Dinding','deskripsi'=>'Cermin oval bingkai putih, ukuran sedang.','harga'=>20000,'jumlah'=>2,'gambar'=>'','kondisi'=>'Bekas','lama_pakai'=>'3 bulan','lokasi'=>'Kos Kenanga','id_user'=>1],
 ];
 
-// ── Ambil data barang: DB dulu, fallback dummy ───────────────────────────────
+// Ambil data barang: DB dulu, fallback dummy
 $barang = null;
 if ($id_barang > 0) {
     $stmt = mysqli_prepare($conn, "SELECT * FROM tbl_barang WHERE id_barang = ?");
@@ -56,7 +56,7 @@ if ((int)$barang['id_user'] === $id_user) {
     exit();
 }
 
-// ── Proses konfirmasi pembelian ──────────────────────────────────────────────
+// Proses konfirmasi pembelian
 $sukses = false;
 $error  = '';
 
